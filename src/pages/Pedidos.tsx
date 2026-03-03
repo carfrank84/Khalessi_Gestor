@@ -411,8 +411,16 @@ export default function Pedidos() {
     { key: 'fecha', label: 'Fecha' },
     {
       key: 'id_cliente',
-      label: 'Cliente ID',
-      render: (id_cliente: number) => `Cliente #${id_cliente}`,
+      label: 'Cliente',
+      render: (id_cliente: number | string) => {
+        const cliente = clientes.find(
+          (c) => String(c.id_cliente) === String(id_cliente)
+        )
+
+        if (!cliente) return `Cliente #${id_cliente}`
+
+        return `${cliente.nombre} ${cliente.apellido}`.trim()
+      },
     },
     {
       key: 'productos',
