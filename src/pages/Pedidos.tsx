@@ -16,6 +16,15 @@ export default function Pedidos() {
   const [searchCliente, setSearchCliente] = useState('')
   const [searchProducto, setSearchProducto] = useState('')
   const [cantidad, setCantidad] = useState(1)
+  const [bonificacion, setBonificacion] = useState('0')
+
+  const subtotalVenta = selectedProductos.reduce(
+    (sum, item) => sum + item.producto.precio_venta * item.cantidad,
+    0
+  )
+  const bonificacionNumero = Math.max(0, parseFloat(bonificacion) || 0)
+  const bonificacionAplicada = Math.min(bonificacionNumero, subtotalVenta)
+  const totalFinalVenta = Math.max(0, subtotalVenta - bonificacionAplicada)
 
   const filteredClientes = useMemo(() => {
     if (!searchCliente) return []
@@ -73,7 +82,7 @@ export default function Pedidos() {
       productos: selectedProductos,
       fecha: new Date().toISOString().split('T')[0],
       total_costo,
-      total_venta,
+      total_venta: Math.max(0, total_venta - bonificacionAplicada),
       estado: 'Pendiente',
       pago: 'Debe',
     }
@@ -82,6 +91,7 @@ export default function Pedidos() {
     setSelectedCliente(null)
     setSelectedProductos([])
     setSearchCliente('')
+    setBonificacion('0')
   }
 
   const handleEstadoChange = async (id: string, newEstado: 'Pendiente' | 'Entregado') => {
@@ -287,6 +297,21 @@ export default function Pedidos() {
                 </div>
               </div>
 
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Bonificación ($)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={bonificacion}
+                  onChange={(e) => setBonificacion(e.target.value)}
+                  className="input-field"
+                  placeholder="0.00"
+                />
+              </div>
+
               {selectedProductos.length > 0 && (
                 <div className="card p-4 bg-gray-50">
                   <h3 className="font-semibold mb-3">Productos en el Pedido:</h3>
@@ -312,17 +337,17 @@ export default function Pedidos() {
                     </div>
                   ))}
                   <div className="mt-3 pt-3 border-t border-gray-300">
+                    <div className="flex justify-between text-sm md:text-base mb-1">
+                      <span>Subtotal:</span>
+                      <span>${subtotalVenta.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm md:text-base mb-1">
+                      <span>Bonificación:</span>
+                      <span>-${bonificacionAplicada.toFixed(2)}</span>
+                    </div>
                     <div className="flex justify-between font-bold text-base md:text-lg">
                       <span>Total:</span>
-                      <span>
-                        ${selectedProductos
-                          .reduce(
-                            (sum, item) =>
-                              sum + item.producto.precio_venta * item.cantidad,
-                            0
-                          )
-                          .toFixed(2)}
-                      </span>
+                      <span>${totalFinalVenta.toFixed(2)}</span>
                     </div>
                   </div>
                 </div>
