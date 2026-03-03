@@ -226,6 +226,13 @@ export default function Pedidos() {
   const construirHtmlRemito = () => {
     if (!pedidoDetalle) return ''
 
+    const cliente = clientes.find(
+      (c) => String(c.id_cliente) === String(pedidoDetalle.id_cliente)
+    )
+    const nombreCliente = cliente
+      ? `${cliente.nombre} ${cliente.apellido}`.trim()
+      : `Cliente #${pedidoDetalle.id_cliente}`
+
     const filas = detalleProductos
       .map((item) => {
         const cantidadItem = obtenerCantidadValida(item.cantidad)
@@ -253,8 +260,8 @@ export default function Pedidos() {
           <div class="meta">
             <div><strong>Pedido:</strong> #${pedidoDetalle.id_pedido}</div>
             <div><strong>Fecha:</strong> ${pedidoDetalle.fecha}</div>
+            <div><strong>Cliente:</strong> ${nombreCliente}</div>
             <div><strong>Cliente ID:</strong> ${pedidoDetalle.id_cliente}</div>
-            <div><strong>Observaciones:</strong> ${detalleObservaciones || '-'}</div>
           </div>
           <table>
             <thead>
@@ -299,6 +306,13 @@ export default function Pedidos() {
   const exportarRemitoPDF = () => {
     if (!pedidoDetalle) return
 
+    const cliente = clientes.find(
+      (c) => String(c.id_cliente) === String(pedidoDetalle.id_cliente)
+    )
+    const nombreCliente = cliente
+      ? `${cliente.nombre} ${cliente.apellido}`.trim()
+      : `Cliente #${pedidoDetalle.id_cliente}`
+
     const pdf = new jsPDF()
     let y = 15
 
@@ -309,9 +323,9 @@ export default function Pedidos() {
     pdf.setFontSize(11)
     pdf.text(`Fecha: ${pedidoDetalle.fecha}`, 14, y)
     y += 6
-    pdf.text(`Cliente ID: ${pedidoDetalle.id_cliente}`, 14, y)
+    pdf.text(`Cliente: ${nombreCliente}`, 14, y)
     y += 6
-    pdf.text(`Observaciones: ${detalleObservaciones || '-'}`, 14, y)
+    pdf.text(`Cliente ID: ${pedidoDetalle.id_cliente}`, 14, y)
     y += 10
 
     pdf.text('Producto', 14, y)
