@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Pedido } from '../types'
+import { Pedido, PedidoProducto } from '../types'
 import { supabaseService } from '../services/supabase'
 
 export function usePedidos() {
@@ -15,7 +15,31 @@ export function usePedidos() {
     try {
       setLoading(true)
       const data = await supabaseService.getPedidos()
-      setPedidos(data || [])
+
+      const pedidosConProductos = await Promise.all(
+        (data || []).map(async (pedido: any) => {
+          const items = await supabaseService.getPedidosProductos(String(pedido.id_pedido))
+
+          const productos: PedidoProducto[] = (items || []).map((item: any) => ({
+            producto: {
+              id_producto: String(item.id_producto),
+              nombre_producto: `Producto #${item.id_producto}`,
+              precio_costo: Number(item.precio_unitario) || 0,
+              precio_venta: Number(item.precio_unitario) || 0,
+            },
+            cantidad: Number(item.cantidad) || 1,
+          }))
+
+          return {
+            ...pedido,
+            productos,
+            observaciones: pedido.observaciones || '',
+            bonificacion: Number(pedido.bonificacion) || 0,
+          }
+        })
+      )
+
+      setPedidos(pedidosConProductos)
       setError(null)
     } catch (err) {
       console.error('Error al cargar pedidos:', err)
@@ -47,7 +71,15 @@ export function usePedidos() {
       }
 
       // Añadir el pedido a la lista local
-      setPedidos([...pedidos, { ...newPedido, productos }])
+      setPedidos([
+        ...pedidos,
+        {
+          ...newPedido,
+          productos,
+          observaciones: newPedido.observaciones || '',
+          bonificacion: Number(newPedido.bonificacion) || 0,
+        },
+      ])
       return newPedido
     } catch (err) {
       console.error('Error al crear pedido:', err)
@@ -59,6 +91,19 @@ export function usePedidos() {
     try {
       const { productos, ...pedidoData } = pedido as any
       await supabaseService.updatePedido(id, pedidoData)
+
+      if (productos) {
+        await supabaseService.deletePedidoProductosByPedido(id)
+        for (const item of productos) {
+          await supabaseService.createPedidoProducto({
+            id_pedido: id,
+            id_producto: item.producto.id_producto,
+            cantidad: item.cantidad,
+            precio_unitario: item.producto.precio_venta,
+          })
+        }
+      }
+
       setPedidos(
         pedidos.map((p) => (p.id_pedido === id ? { ...p, ...pedido } : p))
       )

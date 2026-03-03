@@ -120,5 +120,10 @@ export const supabaseService = {
     if (error) throw error
     return data
   },
+
+  async deletePedidoProductosByPedido(id_pedido: string) {
+    const { error } = await supabase.from('pedidos_productos').delete().eq('id_pedido', id_pedido)
+    if (error) throw error
+  },
   
 }

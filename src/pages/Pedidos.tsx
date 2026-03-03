@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { jsPDF } from 'jspdf'
 import Sidebar from '../components/Sidebar'
 import FormCard from '../components/FormCard'
 import DataTable from '../components/DataTable'
@@ -15,11 +16,39 @@ export default function Pedidos() {
   const [selectedProductos, setSelectedProductos] = useState<PedidoProducto[]>([])
   const [searchCliente, setSearchCliente] = useState('')
   const [searchProducto, setSearchProducto] = useState('')
-  const [cantidad, setCantidad] = useState(1)
   const [bonificacion, setBonificacion] = useState('0')
+  const [observaciones, setObservaciones] = useState('')
+  const [pedidoDetalle, setPedidoDetalle] = useState<Pedido | null>(null)
+  const [mostrarDetalle, setMostrarDetalle] = useState(false)
+  const [editarDetalle, setEditarDetalle] = useState(false)
+  const [detalleProductos, setDetalleProductos] = useState<PedidoProducto[]>([])
+  const [detalleObservaciones, setDetalleObservaciones] = useState('')
+  const [detalleBonificacion, setDetalleBonificacion] = useState('0')
+
+  const obtenerCantidadValida = (valor: number) => {
+    if (!Number.isFinite(valor) || valor < 1) return 1
+    return Math.floor(valor)
+  }
+
+  const enriquecerProducto = (item: PedidoProducto): PedidoProducto => {
+    const catalogo = productos.find(
+      (p) => String(p.id_producto) === String(item.producto.id_producto)
+    )
+
+    return {
+      ...item,
+      producto: {
+        ...item.producto,
+        nombre_producto: catalogo?.nombre_producto || item.producto.nombre_producto,
+        precio_costo: catalogo?.precio_costo ?? item.producto.precio_costo,
+        precio_venta: item.producto.precio_venta || catalogo?.precio_venta || 0,
+      },
+      cantidad: obtenerCantidadValida(item.cantidad),
+    }
+  }
 
   const subtotalVenta = selectedProductos.reduce(
-    (sum, item) => sum + item.producto.precio_venta * item.cantidad,
+    (sum, item) => sum + item.producto.precio_venta * obtenerCantidadValida(item.cantidad),
     0
   )
   const bonificacionNumero = Math.max(0, parseFloat(bonificacion) || 0)
@@ -53,13 +82,51 @@ export default function Pedidos() {
   }
 
   const seleccionarProducto = (producto: Producto) => {
-    setSelectedProductos([...selectedProductos, { producto, cantidad }])
+    const cantidadValida = 1
+
+    setSelectedProductos((prev) => {
+      const indexExistente = prev.findIndex(
+        (item) => item.producto.id_producto === producto.id_producto
+      )
+
+      if (indexExistente === -1) {
+        return [...prev, { producto, cantidad: cantidadValida }]
+      }
+
+      return prev.map((item, index) =>
+        index === indexExistente
+          ? { ...item, cantidad: obtenerCantidadValida(item.cantidad) + cantidadValida }
+          : item
+      )
+    })
+
     setSearchProducto('')
-    setCantidad(1)
   }
 
   const removerProducto = (index: number) => {
     setSelectedProductos(selectedProductos.filter((_, i) => i !== index))
+  }
+
+  const actualizarCantidadProducto = (index: number, nuevaCantidad: number) => {
+    const cantidadValida = obtenerCantidadValida(nuevaCantidad)
+    setSelectedProductos((prev) =>
+      prev.map((item, i) =>
+        i === index ? { ...item, cantidad: cantidadValida } : item
+      )
+    )
+  }
+
+  const actualizarCantidadDetalle = (index: number, nuevaCantidad: number) => {
+    const cantidadValida = obtenerCantidadValida(nuevaCantidad)
+    setDetalleProductos((prev) =>
+      prev.map((item, i) =>
+        i === index ? { ...item, cantidad: cantidadValida } : item
+      )
+    )
+  }
+
+  const removerProductoDetalle = (index: number) => {
+    setDetalleProductos((prev) => prev.filter((_, i) => i !== index))
   }
 
   const finalizarPedido = () => {
@@ -69,11 +136,11 @@ export default function Pedidos() {
     }
 
     const total_costo = selectedProductos.reduce(
-      (sum, item) => sum + item.producto.precio_costo * item.cantidad,
+      (sum, item) => sum + item.producto.precio_costo * obtenerCantidadValida(item.cantidad),
       0
     )
     const total_venta = selectedProductos.reduce(
-      (sum, item) => sum + item.producto.precio_venta * item.cantidad,
+      (sum, item) => sum + item.producto.precio_venta * obtenerCantidadValida(item.cantidad),
       0
     )
 
@@ -83,6 +150,8 @@ export default function Pedidos() {
       fecha: new Date().toISOString().split('T')[0],
       total_costo,
       total_venta: Math.max(0, total_venta - bonificacionAplicada),
+      observaciones,
+      bonificacion: bonificacionAplicada,
       estado: 'Pendiente',
       pago: 'Debe',
     }
@@ -92,6 +161,193 @@ export default function Pedidos() {
     setSelectedProductos([])
     setSearchCliente('')
     setBonificacion('0')
+    setObservaciones('')
+  }
+
+  const abrirDetallePedido = (pedido: Pedido) => {
+    const productosDetalle = (pedido.productos || []).map((item) => enriquecerProducto(item))
+    setPedidoDetalle({ ...pedido, productos: productosDetalle })
+    setDetalleProductos(productosDetalle)
+    setDetalleObservaciones(pedido.observaciones || '')
+    setDetalleBonificacion(String(pedido.bonificacion || 0))
+    setEditarDetalle(false)
+    setMostrarDetalle(true)
+  }
+
+  const cerrarDetallePedido = () => {
+    setMostrarDetalle(false)
+    setEditarDetalle(false)
+    setPedidoDetalle(null)
+    setDetalleProductos([])
+    setDetalleObservaciones('')
+    setDetalleBonificacion('0')
+  }
+
+  const detalleSubtotal = detalleProductos.reduce(
+    (sum, item) => sum + item.producto.precio_venta * obtenerCantidadValida(item.cantidad),
+    0
+  )
+  const detalleBonificacionNumero = Math.max(0, parseFloat(detalleBonificacion) || 0)
+  const detalleBonificacionAplicada = Math.min(detalleBonificacionNumero, detalleSubtotal)
+  const detalleTotalFinal = Math.max(0, detalleSubtotal - detalleBonificacionAplicada)
+  const detalleTotalCosto = detalleProductos.reduce(
+    (sum, item) => sum + item.producto.precio_costo * obtenerCantidadValida(item.cantidad),
+    0
+  )
+
+  const guardarCambiosPedido = async () => {
+    if (!pedidoDetalle) return
+
+    try {
+      await updatePedido(String(pedidoDetalle.id_pedido), {
+        ...pedidoDetalle,
+        productos: detalleProductos,
+        total_costo: detalleTotalCosto,
+        total_venta: detalleTotalFinal,
+        observaciones: detalleObservaciones,
+        bonificacion: detalleBonificacionAplicada,
+      })
+
+      setPedidoDetalle({
+        ...pedidoDetalle,
+        productos: detalleProductos,
+        total_costo: detalleTotalCosto,
+        total_venta: detalleTotalFinal,
+        observaciones: detalleObservaciones,
+        bonificacion: detalleBonificacionAplicada,
+      })
+      setEditarDetalle(false)
+    } catch (err) {
+      console.error('Error al guardar cambios del pedido:', err)
+      window.alert('No se pudo actualizar el pedido')
+    }
+  }
+
+  const construirHtmlRemito = () => {
+    if (!pedidoDetalle) return ''
+
+    const filas = detalleProductos
+      .map((item) => {
+        const cantidadItem = obtenerCantidadValida(item.cantidad)
+        const parcial = item.producto.precio_venta * cantidadItem
+        return `<tr><td>${item.producto.nombre_producto}</td><td style="text-align:center">${cantidadItem}</td><td style="text-align:right">$${item.producto.precio_venta.toFixed(2)}</td><td style="text-align:right">$${parcial.toFixed(2)}</td></tr>`
+      })
+      .join('')
+
+    return `
+      <html>
+        <head>
+          <title>Remito Pedido #${pedidoDetalle.id_pedido}</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 24px; }
+            h1 { margin-bottom: 8px; }
+            .meta { margin-bottom: 16px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+            th, td { border: 1px solid #ddd; padding: 8px; }
+            th { background: #f5f5f5; }
+            .totales { margin-top: 16px; text-align: right; }
+          </style>
+        </head>
+        <body>
+          <h1>Remito</h1>
+          <div class="meta">
+            <div><strong>Pedido:</strong> #${pedidoDetalle.id_pedido}</div>
+            <div><strong>Fecha:</strong> ${pedidoDetalle.fecha}</div>
+            <div><strong>Cliente ID:</strong> ${pedidoDetalle.id_cliente}</div>
+            <div><strong>Observaciones:</strong> ${detalleObservaciones || '-'}</div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Producto</th>
+                <th>Cantidad</th>
+                <th>Precio Unitario</th>
+                <th>Importe Parcial</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${filas}
+            </tbody>
+          </table>
+          <div class="totales">
+            <div>Subtotal: $${detalleSubtotal.toFixed(2)}</div>
+            <div>Bonificación: -$${detalleBonificacionAplicada.toFixed(2)}</div>
+            <div><strong>Total Final: $${detalleTotalFinal.toFixed(2)}</strong></div>
+          </div>
+        </body>
+      </html>
+    `
+  }
+
+  const imprimirRemito = () => {
+    const html = construirHtmlRemito()
+    if (!html) return
+
+    const printWindow = window.open('', '_blank')
+    if (!printWindow) {
+      window.alert('No se pudo abrir la ventana de impresión')
+      return
+    }
+
+    printWindow.document.open()
+    printWindow.document.write(html)
+    printWindow.document.close()
+    printWindow.focus()
+    printWindow.print()
+  }
+
+  const exportarRemitoPDF = () => {
+    if (!pedidoDetalle) return
+
+    const pdf = new jsPDF()
+    let y = 15
+
+    pdf.setFontSize(16)
+    pdf.text(`Remito - Pedido #${pedidoDetalle.id_pedido}`, 14, y)
+    y += 8
+
+    pdf.setFontSize(11)
+    pdf.text(`Fecha: ${pedidoDetalle.fecha}`, 14, y)
+    y += 6
+    pdf.text(`Cliente ID: ${pedidoDetalle.id_cliente}`, 14, y)
+    y += 6
+    pdf.text(`Observaciones: ${detalleObservaciones || '-'}`, 14, y)
+    y += 10
+
+    pdf.text('Producto', 14, y)
+    pdf.text('Cant.', 105, y)
+    pdf.text('P. Unitario', 130, y)
+    pdf.text('Parcial', 170, y)
+    y += 4
+    pdf.line(14, y, 196, y)
+    y += 6
+
+    detalleProductos.forEach((item) => {
+      const cantidadItem = obtenerCantidadValida(item.cantidad)
+      const parcial = item.producto.precio_venta * cantidadItem
+
+      if (y > 270) {
+        pdf.addPage()
+        y = 15
+      }
+
+      pdf.text(item.producto.nombre_producto.substring(0, 45), 14, y)
+      pdf.text(String(cantidadItem), 107, y)
+      pdf.text(`$${item.producto.precio_venta.toFixed(2)}`, 130, y)
+      pdf.text(`$${parcial.toFixed(2)}`, 170, y)
+      y += 6
+    })
+
+    y += 4
+    pdf.line(14, y, 196, y)
+    y += 8
+    pdf.text(`Subtotal: $${detalleSubtotal.toFixed(2)}`, 140, y)
+    y += 6
+    pdf.text(`Bonificación: -$${detalleBonificacionAplicada.toFixed(2)}`, 140, y)
+    y += 6
+    pdf.text(`Total Final: $${detalleTotalFinal.toFixed(2)}`, 140, y)
+
+    pdf.save(`remito-pedido-${pedidoDetalle.id_pedido}.pdf`)
   }
 
   const handleEstadoChange = async (id: string, newEstado: 'Pendiente' | 'Entregado') => {
@@ -185,12 +441,20 @@ export default function Pedidos() {
       key: 'acciones',
       label: 'Acciones',
       render: (_: any, row: Pedido) => (
-        <button
-          onClick={() => handleDeletePedido(row.id_pedido)}
-          className="px-3 py-1 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm"
-        >
-          🗑️ Eliminar
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => abrirDetallePedido(row)}
+            className="px-3 py-1 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition-colors text-sm"
+          >
+            Ver detalle
+          </button>
+          <button
+            onClick={() => handleDeletePedido(row.id_pedido)}
+            className="px-3 py-1 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm"
+          >
+            🗑️ Eliminar
+          </button>
+        </div>
       ),
     },
   ]
@@ -249,7 +513,7 @@ export default function Pedidos() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="md:col-span-2 relative">
+                <div className="md:col-span-3 relative">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Buscar Producto
                   </label>
@@ -282,19 +546,6 @@ export default function Pedidos() {
                     </div>
                   )}
                 </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Cantidad
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={cantidad}
-                    onChange={(e) => setCantidad(parseInt(e.target.value))}
-                    className="input-field"
-                  />
-                </div>
               </div>
 
               <div>
@@ -312,6 +563,18 @@ export default function Pedidos() {
                 />
               </div>
 
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Observaciones del Pedido
+                </label>
+                <textarea
+                  value={observaciones}
+                  onChange={(e) => setObservaciones(e.target.value)}
+                  className="input-field min-h-[90px]"
+                  placeholder="Ejemplo: Diseño A4 de flores, colores pastel, tipografía serif..."
+                />
+              </div>
+
               {selectedProductos.length > 0 && (
                 <div className="card p-4 bg-gray-50">
                   <h3 className="font-semibold mb-3">Productos en el Pedido:</h3>
@@ -320,12 +583,28 @@ export default function Pedidos() {
                       key={index}
                       className="flex flex-col sm:flex-row gap-2 sm:gap-0 justify-between sm:items-center p-2 bg-white rounded mb-2"
                     >
-                      <span>
-                        {item.producto.nombre_producto} x {item.cantidad}
-                      </span>
+                      <div className="flex items-center gap-3">
+                        <span>{item.producto.nombre_producto}</span>
+                        <input
+                          type="number"
+                          min="1"
+                          value={obtenerCantidadValida(item.cantidad)}
+                          onChange={(e) => {
+                            const value = e.target.value
+                            if (value === '') {
+                              actualizarCantidadProducto(index, 1)
+                              return
+                            }
+
+                            const parsed = parseInt(value, 10)
+                            actualizarCantidadProducto(index, parsed)
+                          }}
+                          className="input-field w-20"
+                        />
+                      </div>
                       <div className="flex items-center gap-3">
                         <span className="font-semibold">
-                          ${(item.producto.precio_venta * item.cantidad).toFixed(2)}
+                          ${(item.producto.precio_venta * obtenerCantidadValida(item.cantidad)).toFixed(2)}
                         </span>
                         <button
                           onClick={() => removerProducto(index)}
@@ -371,6 +650,174 @@ export default function Pedidos() {
             searchable
             searchPlaceholder="Buscar pedido..."
           />
+
+          {mostrarDetalle && pedidoDetalle && (
+            <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+              <div className="bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto p-6">
+                <div className="flex items-start justify-between mb-4">
+                  <h2 className="text-xl font-bold text-gray-800">Detalle Pedido #{pedidoDetalle.id_pedido}</h2>
+                  <button
+                    type="button"
+                    onClick={cerrarDetallePedido}
+                    className="text-gray-500 hover:text-gray-800"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <p className="text-sm text-gray-500">Fecha</p>
+                    <p className="font-semibold">{pedidoDetalle.fecha}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">Cliente ID</p>
+                    <p className="font-semibold">{pedidoDetalle.id_cliente}</p>
+                  </div>
+                </div>
+
+                <div className="mb-4">
+                  <p className="text-sm text-gray-500 mb-2">Observaciones</p>
+                  {editarDetalle ? (
+                    <textarea
+                      value={detalleObservaciones}
+                      onChange={(e) => setDetalleObservaciones(e.target.value)}
+                      className="input-field min-h-[90px]"
+                    />
+                  ) : (
+                    <p className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                      {detalleObservaciones || '-'}
+                    </p>
+                  )}
+                </div>
+
+                <div className="mb-4">
+                  <h3 className="font-semibold mb-2">Productos</h3>
+                  <div className="space-y-2">
+                    {detalleProductos.length === 0 && (
+                      <p className="text-sm text-gray-500">No hay productos cargados en este pedido.</p>
+                    )}
+                    {detalleProductos.map((item, index) => {
+                      const cantidadItem = obtenerCantidadValida(item.cantidad)
+                      const parcial = item.producto.precio_venta * cantidadItem
+
+                      return (
+                        <div
+                          key={index}
+                          className="flex flex-col sm:flex-row gap-2 sm:gap-0 justify-between sm:items-center p-3 bg-gray-50 rounded-lg"
+                        >
+                          <div className="flex items-center gap-3">
+                            <span>{item.producto.nombre_producto}</span>
+                            {editarDetalle ? (
+                              <input
+                                type="number"
+                                min="1"
+                                value={cantidadItem}
+                                onChange={(e) => {
+                                  const parsed = parseInt(e.target.value || '1', 10)
+                                  actualizarCantidadDetalle(index, parsed)
+                                }}
+                                className="input-field w-20"
+                              />
+                            ) : (
+                              <span className="font-medium">x {cantidadItem}</span>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-3">
+                            <span className="font-semibold">${parcial.toFixed(2)}</span>
+                            {editarDetalle && (
+                              <button
+                                type="button"
+                                onClick={() => removerProductoDetalle(index)}
+                                className="text-red-600 hover:text-red-800"
+                              >
+                                ✕
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                <div className="mb-4">
+                  <label className="block text-sm text-gray-500 mb-2">Bonificación ($)</label>
+                  {editarDetalle ? (
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={detalleBonificacion}
+                      onChange={(e) => setDetalleBonificacion(e.target.value)}
+                      className="input-field max-w-xs"
+                    />
+                  ) : (
+                    <p className="font-semibold">${detalleBonificacionAplicada.toFixed(2)}</p>
+                  )}
+                </div>
+
+                <div className="border-t border-gray-200 pt-4 mb-5">
+                  <div className="flex justify-between text-sm mb-1">
+                    <span>Subtotal</span>
+                    <span>${detalleSubtotal.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm mb-1">
+                    <span>Bonificación</span>
+                    <span>-${detalleBonificacionAplicada.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between font-bold text-lg">
+                    <span>Total</span>
+                    <span>${detalleTotalFinal.toFixed(2)}</span>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-2 justify-end">
+                  <button
+                    type="button"
+                    onClick={imprimirRemito}
+                    className="btn-secondary"
+                  >
+                    Imprimir Remito
+                  </button>
+                  <button
+                    type="button"
+                    onClick={exportarRemitoPDF}
+                    className="btn-secondary"
+                  >
+                    Exportar PDF
+                  </button>
+                  {editarDetalle ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => setEditarDetalle(false)}
+                        className="btn-secondary"
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={guardarCambiosPedido}
+                        className="btn-primary"
+                      >
+                        Guardar cambios
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setEditarDetalle(true)}
+                      className="btn-primary"
+                    >
+                      Editar Pedido
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </main>
     </div>
