@@ -371,7 +371,7 @@ export default function Pedidos() {
     pdf.save(`remito-pedido-${pedidoDetalle.id_pedido}.pdf`)
   }
 
-  const handleEstadoChange = async (id: string, newEstado: 'Pendiente' | 'Entregado') => {
+  const handleEstadoChange = async (id: string, newEstado: 'Pendiente' | 'Terminado' | 'Entregado') => {
     const pedido = pedidos.find((p) => p.id_pedido === id)
     if (!pedido) return
 
@@ -427,17 +427,20 @@ export default function Pedidos() {
     {
       key: 'estado',
       label: 'Estado',
-      render: (estado: 'Pendiente' | 'Entregado', row: Pedido) => (
+      render: (estado: 'Pendiente' | 'Terminado' | 'Entregado', row: Pedido) => (
         <select
           value={estado}
-          onChange={(e) => handleEstadoChange(row.id_pedido, e.target.value as 'Pendiente' | 'Entregado')}
+          onChange={(e) => handleEstadoChange(row.id_pedido, e.target.value as 'Pendiente' | 'Terminado' | 'Entregado')}
           className={`px-3 py-1 rounded-lg text-sm font-medium ${
             estado === 'Entregado'
               ? 'bg-green-100 text-green-800'
-              : 'bg-yellow-100 text-yellow-800'
+              : estado === 'Terminado'
+                ? 'bg-orange-100 text-orange-800'
+                : 'bg-red-100 text-red-800'
           }`}
         >
           <option value="Pendiente">Pendiente</option>
+          <option value="Terminado">Terminado</option>
           <option value="Entregado">Entregado</option>
         </select>
       ),
