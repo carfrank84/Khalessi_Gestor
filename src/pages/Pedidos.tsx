@@ -232,6 +232,7 @@ export default function Pedidos() {
     const nombreCliente = cliente
       ? `${cliente.nombre} ${cliente.apellido}`.trim()
       : `Cliente #${pedidoDetalle.id_cliente}`
+    const telefonoCliente = cliente?.telefono?.trim()
 
     const filas = detalleProductos
       .map((item) => {
@@ -262,6 +263,7 @@ export default function Pedidos() {
             <div><strong>Fecha:</strong> ${pedidoDetalle.fecha}</div>
             <div><strong>Cliente:</strong> ${nombreCliente}</div>
             <div><strong>Cliente ID:</strong> ${pedidoDetalle.id_cliente}</div>
+            ${telefonoCliente ? `<div><strong>Teléfono:</strong> ${telefonoCliente}</div>` : ''}
           </div>
           <table>
             <thead>
@@ -312,6 +314,7 @@ export default function Pedidos() {
     const nombreCliente = cliente
       ? `${cliente.nombre} ${cliente.apellido}`.trim()
       : `Cliente #${pedidoDetalle.id_cliente}`
+    const telefonoCliente = cliente?.telefono?.trim()
 
     const pdf = new jsPDF()
     let y = 15
@@ -326,6 +329,10 @@ export default function Pedidos() {
     pdf.text(`Cliente: ${nombreCliente}`, 14, y)
     y += 6
     pdf.text(`Cliente ID: ${pedidoDetalle.id_cliente}`, 14, y)
+    if (telefonoCliente) {
+      y += 6
+      pdf.text(`Teléfono: ${telefonoCliente}`, 14, y)
+    }
     y += 10
 
     pdf.text('Producto', 14, y)
