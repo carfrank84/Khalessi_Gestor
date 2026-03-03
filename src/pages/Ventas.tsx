@@ -14,7 +14,7 @@ export default function Ventas() {
     }
   }
 
-  const handlePagoChange = (id: string, newPago: 'Debe' | 'Pagado') => {
+  const handlePagoChange = (id: string, newPago: 'Debe' | 'Seña' | 'Pagado') => {
     const venta = ventas.find(v => v.id_pedido === id)
     if (venta) {
       updatePedido(id, { ...venta, pago: newPago })
@@ -82,14 +82,17 @@ export default function Ventas() {
       render: (pago: string, row: Pedido) => (
         <select
           value={pago}
-          onChange={(e) => handlePagoChange(row.id_pedido, e.target.value as 'Debe' | 'Pagado')}
+          onChange={(e) => handlePagoChange(row.id_pedido, e.target.value as 'Debe' | 'Seña' | 'Pagado')}
           className={`px-3 py-1 rounded-lg text-sm font-medium ${
             pago === 'Pagado'
               ? 'bg-green-100 text-green-800'
+              : pago === 'Seña'
+                ? 'bg-orange-100 text-orange-800'
               : 'bg-red-100 text-red-800'
           }`}
         >
           <option value="Debe">Debe</option>
+          <option value="Seña">Seña</option>
           <option value="Pagado">Pagado</option>
         </select>
       ),

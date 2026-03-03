@@ -35,8 +35,9 @@ export interface Pedido {
   total_venta: number;
   observaciones?: string;
   bonificacion?: number;
+  monto_senia?: number;
   estado: 'Pendiente' | 'Terminado' | 'Entregado';
-  pago: 'Debe' | 'Pagado';
+  pago: 'Debe' | 'Seña' | 'Pagado';
 }
 
 export interface VentaSummary {

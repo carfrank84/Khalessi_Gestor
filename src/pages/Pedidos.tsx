@@ -30,6 +30,12 @@ export default function Pedidos() {
     return Math.floor(valor)
   }
 
+  const normalizarMontoSenia = (valor: string | number | null | undefined) => {
+    const monto = typeof valor === 'string' ? parseFloat(valor.replace(',', '.')) : Number(valor)
+    if (!Number.isFinite(monto) || monto < 0) return 0
+    return Number(monto.toFixed(2))
+  }
+
   const enriquecerProducto = (item: PedidoProducto): PedidoProducto => {
     const catalogo = productos.find(
       (p) => String(p.id_producto) === String(item.producto.id_producto)
@@ -152,6 +158,7 @@ export default function Pedidos() {
       total_venta: Math.max(0, total_venta - bonificacionAplicada),
       observaciones,
       bonificacion: bonificacionAplicada,
+      monto_senia: 0,
       estado: 'Pendiente',
       pago: 'Debe',
     }
@@ -391,15 +398,34 @@ export default function Pedidos() {
     }
   }
 
-  const handlePagoChange = async (id: string, newPago: 'Debe' | 'Pagado') => {
+  const handlePagoChange = async (id: string, newPago: 'Debe' | 'Seña' | 'Pagado') => {
     const pedido = pedidos.find((p) => p.id_pedido === id)
     if (!pedido) return
 
     try {
-      await updatePedido(id, { ...pedido, pago: newPago })
+      await updatePedido(id, {
+        ...pedido,
+        pago: newPago,
+        monto_senia: newPago === 'Seña' ? normalizarMontoSenia(pedido.monto_senia) : 0,
+      })
     } catch (err) {
       console.error('Error al modificar pago del pedido:', err)
       window.alert('No se pudo modificar el estado de pago del pedido')
+    }
+  }
+
+  const handleSenaMontoChange = async (id: string, value: string) => {
+    const pedido = pedidos.find((p) => p.id_pedido === id)
+    if (!pedido) return
+
+    try {
+      await updatePedido(id, {
+        ...pedido,
+        monto_senia: normalizarMontoSenia(value),
+      })
+    } catch (err) {
+      console.error('Error al guardar monto de seña:', err)
+      window.alert('No se pudo guardar el monto de seña')
     }
   }
 
@@ -464,17 +490,36 @@ export default function Pedidos() {
     {
       key: 'pago',
       label: 'Pago',
-      render: (pago: 'Debe' | 'Pagado', row: Pedido) => (
-        <select
-          value={pago}
-          onChange={(e) => handlePagoChange(row.id_pedido, e.target.value as 'Debe' | 'Pagado')}
-          className={`px-3 py-1 rounded-lg text-sm font-medium ${
-            pago === 'Pagado' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-          }`}
-        >
-          <option value="Debe">Debe</option>
-          <option value="Pagado">Pagado</option>
-        </select>
+      render: (pago: 'Debe' | 'Seña' | 'Pagado', row: Pedido) => (
+        <div className="flex flex-col gap-2">
+          <select
+            value={pago}
+            onChange={(e) => handlePagoChange(row.id_pedido, e.target.value as 'Debe' | 'Seña' | 'Pagado')}
+            className={`px-3 py-1 rounded-lg text-sm font-medium ${
+              pago === 'Pagado'
+                ? 'bg-green-100 text-green-800'
+                : pago === 'Seña'
+                  ? 'bg-orange-100 text-orange-800'
+                  : 'bg-red-100 text-red-800'
+            }`}
+          >
+            <option value="Debe">Debe</option>
+            <option value="Seña">Seña</option>
+            <option value="Pagado">Pagado</option>
+          </select>
+
+          {pago === 'Seña' && (
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={normalizarMontoSenia(row.monto_senia)}
+              onChange={(e) => handleSenaMontoChange(row.id_pedido, e.target.value)}
+              className="input-field text-sm"
+              placeholder="Monto seña"
+            />
+          )}
+        </div>
       ),
     },
     {

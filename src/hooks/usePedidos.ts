@@ -35,6 +35,7 @@ export function usePedidos() {
             productos,
             observaciones: pedido.observaciones || '',
             bonificacion: Number(pedido.bonificacion) || 0,
+            monto_senia: Number(pedido.monto_senia) || 0,
           }
         })
       )
@@ -78,6 +79,7 @@ export function usePedidos() {
           productos,
           observaciones: newPedido.observaciones || '',
           bonificacion: Number(newPedido.bonificacion) || 0,
+          monto_senia: Number(newPedido.monto_senia) || 0,
         },
       ])
       return newPedido
