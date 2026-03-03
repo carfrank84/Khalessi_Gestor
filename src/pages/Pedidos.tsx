@@ -194,6 +194,14 @@ export default function Pedidos() {
     (sum, item) => sum + item.producto.precio_costo * obtenerCantidadValida(item.cantidad),
     0
   )
+  const clienteDetalle = pedidoDetalle
+    ? clientes.find((c) => String(c.id_cliente) === String(pedidoDetalle.id_cliente))
+    : null
+  const nombreClienteDetalle = clienteDetalle
+    ? `${clienteDetalle.nombre} ${clienteDetalle.apellido}`.trim()
+    : pedidoDetalle
+      ? `Cliente #${pedidoDetalle.id_cliente}`
+      : '-'
 
   const guardarCambiosPedido = async () => {
     if (!pedidoDetalle) return
@@ -701,6 +709,10 @@ export default function Pedidos() {
                   <div>
                     <p className="text-sm text-gray-500">Fecha</p>
                     <p className="font-semibold">{pedidoDetalle.fecha}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">Cliente</p>
+                    <p className="font-semibold">{nombreClienteDetalle}</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-500">Cliente ID</p>
