@@ -10,9 +10,20 @@ export default function Productos() {
   const [formData, setFormData] = useState({
     nombre_producto: '',
     precio_costo: '',
-    precio_venta: '',
   })
   const [editingId, setEditingId] = useState<string | null>(null)
+
+  const calcularPrecioVenta = (precioCosto: number) => {
+    const conImpresion = precioCosto * 1.15
+    const conDiseno = conImpresion * 1.5
+    const precioFinal = conDiseno * 1.5
+    return Number(precioFinal.toFixed(2))
+  }
+
+  const precioCostoNumero = parseFloat(formData.precio_costo)
+  const precioVentaCalculado = Number.isNaN(precioCostoNumero)
+    ? ''
+    : calcularPrecioVenta(precioCostoNumero).toString()
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -20,22 +31,21 @@ export default function Productos() {
     if (editingId) {
       updateProducto(editingId, {
         nombre_producto: formData.nombre_producto,
-        precio_costo: parseFloat(formData.precio_costo),
-        precio_venta: parseFloat(formData.precio_venta),
+        precio_costo: precioCostoNumero,
+        precio_venta: calcularPrecioVenta(precioCostoNumero),
       })
       setEditingId(null)
     } else {
       addProducto({
         nombre_producto: formData.nombre_producto,
-        precio_costo: parseFloat(formData.precio_costo),
-        precio_venta: parseFloat(formData.precio_venta),
+        precio_costo: precioCostoNumero,
+        precio_venta: calcularPrecioVenta(precioCostoNumero),
       })
     }
     
     setFormData({
       nombre_producto: '',
       precio_costo: '',
-      precio_venta: '',
     })
   }
 
@@ -43,7 +53,6 @@ export default function Productos() {
     setFormData({
       nombre_producto: producto.nombre_producto,
       precio_costo: producto.precio_costo.toString(),
-      precio_venta: producto.precio_venta.toString(),
     })
     setEditingId(producto.id_producto)
   }
@@ -53,7 +62,6 @@ export default function Productos() {
     setFormData({
       nombre_producto: '',
       precio_costo: '',
-      precio_venta: '',
     })
   }
 
@@ -159,10 +167,9 @@ export default function Productos() {
                 <input
                   type="number"
                   step="0.01"
-                  value={formData.precio_venta}
-                  onChange={(e) => setFormData({ ...formData, precio_venta: e.target.value })}
+                  value={precioVentaCalculado}
                   className="input-field"
-                  required
+                  readOnly
                 />
               </div>
 
