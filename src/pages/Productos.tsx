@@ -17,7 +17,7 @@ export default function Productos() {
     const conImpresion = precioCosto * 1.15
     const conDiseno = conImpresion * 1.5
     const precioFinal = conDiseno * 1.5
-    return Number(precioFinal.toFixed(2))
+    return Math.ceil(precioFinal / 100) * 100
   }
 
   const precioCostoNumero = parseFloat(formData.precio_costo)
