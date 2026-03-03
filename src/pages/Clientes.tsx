@@ -131,7 +131,6 @@ export default function Clientes() {
                   value={formData.apellido}
                   onChange={(e) => setFormData({ ...formData, apellido: e.target.value })}
                   className="input-field"
-                  required
                 />
               </div>
 
@@ -144,7 +143,6 @@ export default function Clientes() {
                   value={formData.direccion}
                   onChange={(e) => setFormData({ ...formData, direccion: e.target.value })}
                   className="input-field"
-                  required
                 />
               </div>
 
@@ -157,7 +155,6 @@ export default function Clientes() {
                   value={formData.telefono}
                   onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
                   className="input-field"
-                  required
                 />
               </div>
 
@@ -170,7 +167,6 @@ export default function Clientes() {
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   className="input-field"
-                  required
                 />
               </div>
             </div>
