@@ -11,13 +11,26 @@ export default function Productos() {
     nombre_producto: '',
     precio_costo: '',
   })
+  const [disenoPorcentaje, setDisenoPorcentaje] = useState(50)
+  const [disenoInput, setDisenoInput] = useState('50')
   const [editingId, setEditingId] = useState<string | null>(null)
 
   const calcularPrecioVenta = (precioCosto: number) => {
     const conImpresion = precioCosto * 1.15
-    const conDiseno = conImpresion * 1.5
+    const conDiseno = conImpresion * (1 + disenoPorcentaje / 100)
     const precioFinal = conDiseno * 1.5
     return Math.ceil(precioFinal / 100) * 100
+  }
+
+  const aplicarPorcentajeDiseno = () => {
+    const porcentaje = parseFloat(disenoInput)
+
+    if (Number.isNaN(porcentaje) || porcentaje < 0) {
+      window.alert('Ingrese un porcentaje de diseño válido (0 o mayor).')
+      return
+    }
+
+    setDisenoPorcentaje(porcentaje)
   }
 
   const precioCostoNumero = parseFloat(formData.precio_costo)
@@ -133,6 +146,30 @@ export default function Productos() {
             onSubmit={handleSubmit}
           >
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="md:col-span-3">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  % Diseño (ajuste manual)
+                </label>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={disenoInput}
+                    onChange={(e) => setDisenoInput(e.target.value)}
+                    className="input-field"
+                  />
+                  <button
+                    type="button"
+                    onClick={aplicarPorcentajeDiseno}
+                    className="btn-secondary"
+                  >
+                    Aplicar % Diseño
+                  </button>
+                </div>
+                <p className="text-sm text-gray-500 mt-1">Actualmente aplicado: {disenoPorcentaje}%</p>
+              </div>
+
               <div className="md:col-span-3">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Nombre del Producto
