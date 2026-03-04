@@ -7,6 +7,11 @@ import { usePedidos } from '../hooks/usePedidos'
 export default function Ventas() {
   const { pedidos: ventas, loading, error, updatePedido } = usePedidos()
 
+  const costoConImpresion = (costoBase: number) => costoBase * 1.15
+  const gananciaNeta = (ventaTotal: number, costoBase: number) => {
+    return ventaTotal - costoConImpresion(costoBase)
+  }
+
   const handleEstadoChange = (id: string, newEstado: 'Pendiente' | 'Terminado' | 'Entregado') => {
     const venta = ventas.find(v => v.id_pedido === id)
     if (venta) {
@@ -22,11 +27,14 @@ export default function Ventas() {
   }
 
   const summary: VentaSummary = {
-    total_costo: ventas.reduce((sum, v) => sum + v.total_costo, 0),
-    ganancia: ventas.reduce((sum, v) => sum + (v.total_venta - v.total_costo), 0),
+    total_costo: ventas.reduce((sum, v) => sum + costoConImpresion(v.total_costo), 0),
+    ganancia: ventas.reduce((sum, v) => sum + gananciaNeta(v.total_venta, v.total_costo), 0),
     caja: ventas
       .filter(v => v.pago === 'Pagado' && v.estado === 'Entregado')
-      .reduce((sum, v) => sum + v.total_venta, 0),
+      .reduce(
+        (sum, v) => sum + (costoConImpresion(v.total_costo) + gananciaNeta(v.total_venta, v.total_costo)),
+        0
+      ),
   }
 
   const columns = [
@@ -40,7 +48,7 @@ export default function Ventas() {
     { 
       key: 'total_costo', 
       label: 'Costo',
-      render: (value: number) => `$${value.toFixed(2)}`
+      render: (value: number) => `$${costoConImpresion(value).toFixed(2)}`
     },
     { 
       key: 'total_venta', 
@@ -51,7 +59,7 @@ export default function Ventas() {
       key: 'ganancia', 
       label: 'Ganancia',
       render: (_: any, row: Pedido) => {
-        const ganancia = row.total_venta - row.total_costo
+        const ganancia = gananciaNeta(row.total_venta, row.total_costo)
         return `$${ganancia.toFixed(2)}`
       }
     },
