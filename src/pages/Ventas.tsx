@@ -29,12 +29,10 @@ export default function Ventas() {
   const summary: VentaSummary = {
     total_costo: ventas.reduce((sum, v) => sum + costoConImpresion(v.total_costo), 0),
     ganancia: ventas.reduce((sum, v) => sum + gananciaNeta(v.total_venta, v.total_costo), 0),
-    caja: ventas
-      .filter(v => v.pago === 'Pagado' && v.estado === 'Entregado')
-      .reduce(
-        (sum, v) => sum + (costoConImpresion(v.total_costo) + gananciaNeta(v.total_venta, v.total_costo)),
-        0
-      ),
+    caja: ventas.reduce(
+      (sum, v) => sum + (costoConImpresion(v.total_costo) + gananciaNeta(v.total_venta, v.total_costo)),
+      0
+    ),
   }
 
   const columns = [
