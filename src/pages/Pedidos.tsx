@@ -36,6 +36,26 @@ export default function Pedidos() {
     return Number(monto.toFixed(2))
   }
 
+  const formatearFecha = (fecha: string) => {
+    if (!fecha) return '-'
+
+    const partes = fecha.split('-')
+    if (partes.length === 3) {
+      const [anio, mes, dia] = partes
+      return `${dia}-${mes}-${anio}`
+    }
+
+    const date = new Date(fecha)
+    if (!Number.isNaN(date.getTime())) {
+      const dia = String(date.getDate()).padStart(2, '0')
+      const mes = String(date.getMonth() + 1).padStart(2, '0')
+      const anio = date.getFullYear()
+      return `${dia}-${mes}-${anio}`
+    }
+
+    return fecha
+  }
+
   const enriquecerProducto = (item: PedidoProducto): PedidoProducto => {
     const catalogo = productos.find(
       (p) => String(p.id_producto) === String(item.producto.id_producto)
@@ -275,7 +295,7 @@ export default function Pedidos() {
           <h1>Remito</h1>
           <div class="meta">
             <div><strong>Pedido:</strong> #${pedidoDetalle.id_pedido}</div>
-            <div><strong>Fecha:</strong> ${pedidoDetalle.fecha}</div>
+            <div><strong>Fecha:</strong> ${formatearFecha(pedidoDetalle.fecha)}</div>
             <div><strong>Cliente:</strong> ${nombreCliente}</div>
             <div><strong>Cliente ID:</strong> ${pedidoDetalle.id_cliente}</div>
             ${telefonoCliente ? `<div><strong>Teléfono:</strong> ${telefonoCliente}</div>` : ''}
@@ -339,7 +359,7 @@ export default function Pedidos() {
     y += 8
 
     pdf.setFontSize(11)
-    pdf.text(`Fecha: ${pedidoDetalle.fecha}`, 14, y)
+    pdf.text(`Fecha: ${formatearFecha(pedidoDetalle.fecha)}`, 14, y)
     y += 6
     pdf.text(`Cliente: ${nombreCliente}`, 14, y)
     y += 6
@@ -442,7 +462,11 @@ export default function Pedidos() {
 
   const columns = [
     { key: 'id_pedido', label: 'ID' },
-    { key: 'fecha', label: 'Fecha' },
+    {
+      key: 'fecha',
+      label: 'Fecha',
+      render: (value: string) => formatearFecha(value),
+    },
     {
       key: 'id_cliente',
       label: 'Cliente',
@@ -753,7 +777,7 @@ export default function Pedidos() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                   <div>
                     <p className="text-sm text-gray-500">Fecha</p>
-                    <p className="font-semibold">{pedidoDetalle.fecha}</p>
+                    <p className="font-semibold">{formatearFecha(pedidoDetalle.fecha)}</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-500">Cliente</p>
