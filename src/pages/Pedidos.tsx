@@ -102,6 +102,25 @@ export default function Pedidos() {
       .slice(0, 5)
   }, [searchProducto, productos])
 
+  const pedidosOrdenados = useMemo(() => {
+    return [...pedidos].sort((a, b) => {
+      const fechaA = new Date(a.fecha).getTime()
+      const fechaB = new Date(b.fecha).getTime()
+
+      if (fechaA !== fechaB) {
+        return fechaB - fechaA
+      }
+
+      const idA = Number(a.id_pedido)
+      const idB = Number(b.id_pedido)
+      if (!Number.isNaN(idA) && !Number.isNaN(idB)) {
+        return idB - idA
+      }
+
+      return String(b.id_pedido).localeCompare(String(a.id_pedido))
+    })
+  }, [pedidos])
+
   const seleccionarCliente = (cliente: Cliente) => {
     setSelectedCliente(cliente)
     setSearchCliente('')
@@ -755,7 +774,7 @@ export default function Pedidos() {
 
           <DataTable
             columns={columns}
-            data={pedidos}
+            data={pedidosOrdenados}
             searchable
             searchPlaceholder="Buscar pedido..."
           />
