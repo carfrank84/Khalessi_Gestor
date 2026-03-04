@@ -7,6 +7,7 @@ const menuItems = [
   { path: '/productos', label: 'Productos', icon: '📦' },
   { path: '/pedidos', label: 'Pedidos', icon: '🛒' },
   { path: '/ventas', label: 'Ventas', icon: '💰' },
+  { path: '/lista-precios', label: 'Lista de Precios', icon: '🧾' },
   { path: '/stock-insumos', label: 'Stock Insumos', icon: '📋' },
 ]
 

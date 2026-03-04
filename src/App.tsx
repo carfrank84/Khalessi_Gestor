@@ -8,6 +8,7 @@ import Productos from './pages/Productos'
 import Pedidos from './pages/Pedidos'
 import Ventas from './pages/Ventas'
 import StockInsumos from './pages/StockInsumos'
+import ListaPrecios from './pages/ListaPrecios'
 
 function App() {
   return (
@@ -22,6 +23,7 @@ function App() {
             <Route path="/pedidos" element={<Pedidos />} />
             <Route path="/ventas" element={<Ventas />} />
             <Route path="/stock-insumos" element={<StockInsumos />} />
+            <Route path="/lista-precios" element={<ListaPrecios />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </BrowserRouter>
