@@ -11,6 +11,10 @@ export default function Ventas() {
   const gananciaNeta = (ventaTotal: number, costoBase: number) => {
     return ventaTotal - costoConImpresion(costoBase)
   }
+  const montoSeniaValido = (monto: number | undefined, ventaTotal: number) => {
+    const valor = Number(monto) || 0
+    return Math.max(0, Math.min(valor, ventaTotal))
+  }
 
   const handleEstadoChange = (id: string, newEstado: 'Pendiente' | 'Terminado' | 'Entregado') => {
     const venta = ventas.find(v => v.id_pedido === id)
@@ -26,13 +30,22 @@ export default function Ventas() {
     }
   }
 
+  const ventasPagadas = ventas.filter((v) => v.pago === 'Pagado')
+
   const summary: VentaSummary = {
-    total_costo: ventas.reduce((sum, v) => sum + costoConImpresion(v.total_costo), 0),
-    ganancia: ventas.reduce((sum, v) => sum + gananciaNeta(v.total_venta, v.total_costo), 0),
-    caja: ventas.reduce(
-      (sum, v) => sum + (costoConImpresion(v.total_costo) + gananciaNeta(v.total_venta, v.total_costo)),
-      0
-    ),
+    total_costo: ventasPagadas.reduce((sum, v) => sum + costoConImpresion(v.total_costo), 0),
+    ganancia: ventasPagadas.reduce((sum, v) => sum + gananciaNeta(v.total_venta, v.total_costo), 0),
+    caja: ventas.reduce((sum, v) => {
+      if (v.pago === 'Pagado') {
+        return sum + v.total_venta
+      }
+
+      if (v.pago === 'Seña') {
+        return sum + montoSeniaValido(v.monto_senia, v.total_venta)
+      }
+
+      return sum
+    }, 0),
   }
 
   const columns = [
@@ -57,6 +70,10 @@ export default function Ventas() {
       key: 'ganancia', 
       label: 'Ganancia',
       render: (_: any, row: Pedido) => {
+        if (row.pago !== 'Pagado') {
+          return '$0.00'
+        }
+
         const ganancia = gananciaNeta(row.total_venta, row.total_costo)
         return `$${ganancia.toFixed(2)}`
       }
