@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react'
 import { jsPDF } from 'jspdf'
+import { Link, useSearchParams } from 'react-router-dom'
 import Sidebar from '../components/Sidebar'
 import FormCard from '../components/FormCard'
 import DataTable from '../components/DataTable'
@@ -9,6 +10,7 @@ import { useProductos } from '../hooks/useProductos'
 import { usePedidos } from '../hooks/usePedidos'
 
 export default function Pedidos() {
+  const [searchParams] = useSearchParams()
   const { clientes } = useClientes()
   const { productos } = useProductos()
   const { pedidos, loading, error, addPedido, updatePedido, deletePedido } = usePedidos()
@@ -120,6 +122,23 @@ export default function Pedidos() {
       return String(b.id_pedido).localeCompare(String(a.id_pedido))
     })
   }, [pedidos])
+
+  const estadoFiltro = searchParams.get('estado')
+  const idFiltro = searchParams.get('id')
+
+  const pedidosFiltrados = useMemo(() => {
+    return pedidosOrdenados.filter((pedido) => {
+      const coincideEstado = estadoFiltro
+        ? pedido.estado.toLowerCase() === estadoFiltro.toLowerCase()
+        : true
+
+      const coincideId = idFiltro
+        ? String(pedido.id_pedido).toLowerCase().includes(idFiltro.toLowerCase())
+        : true
+
+      return coincideEstado && coincideId
+    })
+  }, [pedidosOrdenados, estadoFiltro, idFiltro])
 
   const seleccionarCliente = (cliente: Cliente) => {
     setSelectedCliente(cliente)
@@ -774,10 +793,25 @@ export default function Pedidos() {
 
           <DataTable
             columns={columns}
-            data={pedidosOrdenados}
+            data={pedidosFiltrados}
             searchable
             searchPlaceholder="Buscar pedido..."
           />
+
+          {(estadoFiltro || idFiltro) && (
+            <div className="mt-4 rounded-lg border border-violet-200 bg-violet-50 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <p className="text-sm text-violet-900">
+                Filtro activo: {estadoFiltro ? `Estado ${estadoFiltro}` : 'Todos los estados'}
+                {idFiltro ? ` · Pedido ${idFiltro}` : ''}
+              </p>
+              <Link
+                to="/pedidos"
+                className="inline-flex items-center justify-center px-3 py-2 rounded-lg bg-zinc-900 text-white text-sm font-medium hover:bg-zinc-800 transition-colors"
+              >
+                Limpiar filtro
+              </Link>
+            </div>
+          )}
 
           {mostrarDetalle && pedidoDetalle && (
             <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
