@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import html2canvas from 'html2canvas'
 import { jsPDF } from 'jspdf'
 import { Link, useSearchParams } from 'react-router-dom'
 import Sidebar from '../components/Sidebar'
@@ -8,6 +9,25 @@ import { Pedido, Cliente, Producto, PedidoProducto } from '../types'
 import { useClientes } from '../hooks/useClientes'
 import { useProductos } from '../hooks/useProductos'
 import { usePedidos } from '../hooks/usePedidos'
+
+const EMPRESA_INFO = {
+  nombre: 'Khalessi Creaciones',
+  slogan: 'Gestion creativa y profesional',
+  direccion: 'Las Heras - Mendoza',
+  telefono: '261-2113221 / 261-6661061',
+  email: 'khalessi.creaciones@email.com',
+  logoUrl: '/logo-empresa.png',
+}
+
+const TRANSFERENCIA_INFO = {
+  titular: 'Marcela Nicole Riveros Padilla',
+  cuit: '',
+
+  banco: 'Naranja X',
+  cbu: '',
+
+  alias: 'kcreaciones2026',
+}
 
 export default function Pedidos() {
   const [searchParams] = useSearchParams()
@@ -296,7 +316,7 @@ export default function Pedidos() {
     }
   }
 
-  const construirHtmlRemito = () => {
+  const construirHtmlRemito = (modo: 'print' | 'jpg' = 'print') => {
     if (!pedidoDetalle) return ''
 
     const cliente = clientes.find(
@@ -307,54 +327,332 @@ export default function Pedidos() {
       : `Cliente #${pedidoDetalle.id_cliente}`
     const telefonoCliente = cliente?.telefono?.trim()
 
+    const escapeHtml = (value: string) =>
+      value
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;')
+
     const filas = detalleProductos
       .map((item) => {
         const cantidadItem = obtenerCantidadValida(item.cantidad)
         const parcial = item.producto.precio_venta * cantidadItem
-        return `<tr><td>${item.producto.nombre_producto}</td><td style="text-align:center">${cantidadItem}</td><td style="text-align:right">$${item.producto.precio_venta.toFixed(2)}</td><td style="text-align:right">$${parcial.toFixed(2)}</td></tr>`
+        return `<tr><td>${escapeHtml(item.producto.nombre_producto)}</td><td style="text-align:center">${cantidadItem}</td><td style="text-align:right">$${item.producto.precio_venta.toFixed(2)}</td><td style="text-align:right">$${parcial.toFixed(2)}</td></tr>`
       })
       .join('')
+
+    const opacidadMarcaAgua = modo === 'jpg' ? 0.16 : 0.08
 
     return `
       <html>
         <head>
           <title>Remito Pedido #${pedidoDetalle.id_pedido}</title>
           <style>
-            body { font-family: Arial, sans-serif; padding: 24px; }
-            h1 { margin-bottom: 8px; }
-            .meta { margin-bottom: 16px; }
-            table { width: 100%; border-collapse: collapse; margin-top: 12px; }
-            th, td { border: 1px solid #ddd; padding: 8px; }
-            th { background: #f5f5f5; }
-            .totales { margin-top: 16px; text-align: right; }
+            @page { size: A4; margin: 14mm; }
+            body {
+              font-family: 'Trebuchet MS', 'Segoe UI', sans-serif;
+              color: #202739;
+              margin: 0;
+              padding: 22px;
+              background: radial-gradient(circle at top left, #f8f3ea, #eef3fb 55%, #f8f8f8);
+            }
+            .remito {
+              position: relative;
+              max-width: 1120px;
+              margin: 0 auto;
+              border: 1px solid #d7deec;
+              border-radius: 14px;
+              box-shadow: 0 10px 34px rgba(17, 24, 39, 0.08);
+              padding: 22px;
+              overflow: hidden;
+              background: #ffffff;
+              isolation: isolate;
+            }
+            .watermark {
+              position: absolute;
+              inset: 0;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              pointer-events: none;
+              z-index: 0;
+            }
+            .watermark img {
+              width: 66%;
+              max-width: 430px;
+              max-height: 260px;
+              opacity: ${opacidadMarcaAgua};
+              object-fit: contain;
+              filter: grayscale(4%) saturate(1.06);
+            }
+            .watermark .fallback {
+              display: none;
+              font-size: 78px;
+              font-weight: 800;
+              letter-spacing: 7px;
+              color: #1a2a4a;
+              opacity: 0.045;
+              transform: rotate(-20deg);
+              text-transform: uppercase;
+            }
+            .watermark.no-logo .fallback { display: block; }
+            .content { position: relative; z-index: 1; }
+            .header {
+              display: flex;
+              align-items: flex-start;
+              justify-content: space-between;
+              gap: 20px;
+              border-bottom: 2px solid #27344d;
+              padding-bottom: 12px;
+              margin-bottom: 16px;
+            }
+            .brand {
+              display: flex;
+              align-items: center;
+              gap: 12px;
+            }
+            .brand-logo {
+              width: 84px;
+              height: 84px;
+              border-radius: 10px;
+              object-fit: contain;
+              border: 1px solid #d6deed;
+              background: #ffffff;
+              padding: 2px;
+            }
+            .brand-name {
+              font-family: 'Cambria', 'Times New Roman', serif;
+              font-size: 36px;
+              font-weight: 700;
+              line-height: 1;
+              letter-spacing: 0.3px;
+              color: #1e2f4d;
+            }
+            .brand-slogan {
+              color: #5f6e84;
+              font-size: 12px;
+              margin-top: 4px;
+              letter-spacing: 0.4px;
+            }
+            .title-box { text-align: right; }
+            .title-box h1 {
+              margin: 0;
+              font-size: 28px;
+              letter-spacing: 1px;
+              color: #1f2d4a;
+            }
+            .title-chip {
+              display: inline-block;
+              margin-top: 4px;
+              margin-bottom: 3px;
+              border: 1px solid #ced8ea;
+              color: #334766;
+              background: #f5f8ff;
+              border-radius: 999px;
+              font-size: 10px;
+              font-weight: 700;
+              letter-spacing: 0.8px;
+              padding: 4px 10px;
+              text-transform: uppercase;
+            }
+            .title-box p { margin: 2px 0; color: #4f5e74; font-size: 12px; }
+            .grid {
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              gap: 12px;
+              margin-bottom: 16px;
+            }
+            .card {
+              border: 1px solid #d7deec;
+              border-radius: 10px;
+              padding: 12px;
+              background: linear-gradient(180deg, #ffffff, #fafcff);
+            }
+            .card h3 {
+              margin: 0 0 8px;
+              font-size: 13px;
+              color: #1d2a44;
+              text-transform: uppercase;
+              letter-spacing: 1px;
+            }
+            .line { margin: 4px 0; font-size: 13px; }
+            .line strong { color: #1f2f4b; }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-top: 10px;
+              border: 1px solid #d7deec;
+              border-radius: 10px;
+              overflow: hidden;
+            }
+            th, td {
+              padding: 9px;
+              font-size: 12px;
+              border-bottom: 1px solid #edf1f8;
+            }
+            th {
+              background: linear-gradient(180deg, #273651, #334362);
+              color: #f8f9fb;
+              font-weight: 700;
+              text-transform: uppercase;
+              font-size: 11px;
+              letter-spacing: 0.9px;
+            }
+            tr:nth-child(even) td { background: #fbfcff; }
+            .totales {
+              margin-top: 12px;
+              margin-left: auto;
+              width: 300px;
+              background: linear-gradient(160deg, #f8fbff, #f0f5ff);
+              border: 1px solid #d3deef;
+              border-radius: 10px;
+              padding: 10px 12px;
+            }
+            .totales-row {
+              display: flex;
+              justify-content: space-between;
+              font-size: 13px;
+              margin: 4px 0;
+            }
+            .totales-final {
+              font-size: 16px;
+              font-weight: 800;
+              color: #132849;
+              border-top: 1px solid #bccbe3;
+              margin-top: 8px;
+              padding-top: 8px;
+            }
+            .payment {
+              margin-top: 14px;
+              border: 1px solid #c9dcff;
+              background: linear-gradient(135deg, #f4f8ff, #eaf3ff 62%, #f8fbff);
+              border-radius: 10px;
+              padding: 12px;
+            }
+            .payment-header {
+              display: flex;
+              align-items: center;
+              justify-content: flex-start;
+              margin-bottom: 6px;
+            }
+            .payment-header h3 {
+              margin: 0;
+              font-size: 13px;
+              text-transform: uppercase;
+              letter-spacing: 1px;
+              color: #18325b;
+            }
+            .payment .line { margin: 3px 0; font-size: 12px; }
+            .footer {
+              margin-top: 14px;
+              border-top: 1px solid #d9e1ee;
+              padding-top: 10px;
+              font-size: 11px;
+              color: #5a6780;
+              text-align: center;
+            }
+            @media (max-width: 960px) {
+              body { padding: 12px; }
+              .header {
+                flex-direction: column;
+                align-items: flex-start;
+              }
+              .title-box {
+                width: 100%;
+                text-align: left;
+              }
+              .grid { grid-template-columns: 1fr; }
+              .totales {
+                margin-left: 0;
+                width: 100%;
+                max-width: 360px;
+              }
+            }
+            @media print {
+              body { background: #fff; }
+              .remito {
+                box-shadow: none;
+                border-color: #d7deec;
+              }
+            }
           </style>
         </head>
         <body>
-          <h1>Remito</h1>
-          <div class="meta">
-            <div><strong>Pedido:</strong> #${pedidoDetalle.id_pedido}</div>
-            <div><strong>Fecha:</strong> ${formatearFecha(pedidoDetalle.fecha)}</div>
-            <div><strong>Cliente:</strong> ${nombreCliente}</div>
-            <div><strong>Cliente ID:</strong> ${pedidoDetalle.id_cliente}</div>
-            ${telefonoCliente ? `<div><strong>Teléfono:</strong> ${telefonoCliente}</div>` : ''}
-          </div>
-          <table>
-            <thead>
-              <tr>
-                <th>Producto</th>
-                <th>Cantidad</th>
-                <th>Precio Unitario</th>
-                <th>Importe Parcial</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${filas}
-            </tbody>
-          </table>
-          <div class="totales">
-            <div>Subtotal: $${detalleSubtotal.toFixed(2)}</div>
-            <div>Bonificación: -$${detalleBonificacionAplicada.toFixed(2)}</div>
-            <div><strong>Total Final: $${detalleTotalFinal.toFixed(2)}</strong></div>
+          <div class="remito">
+            <div class="watermark">
+              <img src="${EMPRESA_INFO.logoUrl}" onerror="this.style.display='none'; this.parentElement.classList.add('no-logo')" />
+              <span class="fallback">${escapeHtml(EMPRESA_INFO.nombre)}</span>
+            </div>
+
+            <div class="content">
+              <div class="header">
+                <div class="brand">
+                  <img class="brand-logo" src="${EMPRESA_INFO.logoUrl}" alt="Logo empresa" onerror="this.style.display='none'" />
+                  <div>
+                    <div class="brand-name">${escapeHtml(EMPRESA_INFO.nombre)}</div>
+                    <div class="brand-slogan">${escapeHtml(EMPRESA_INFO.slogan)}</div>
+                  </div>
+                </div>
+                <div class="title-box">
+                  <h1>REMITO</h1>
+                  <span class="title-chip">Comprobante interno</span>
+                  <p><strong>Pedido:</strong> #${pedidoDetalle.id_pedido}</p>
+                  <p><strong>Fecha:</strong> ${formatearFecha(pedidoDetalle.fecha)}</p>
+                </div>
+              </div>
+
+              <div class="grid">
+                <div class="card">
+                  <h3>Datos del cliente</h3>
+                  <div class="line"><strong>Cliente:</strong> ${escapeHtml(nombreCliente)}</div>
+                  <div class="line"><strong>ID:</strong> ${escapeHtml(String(pedidoDetalle.id_cliente))}</div>
+                  ${telefonoCliente ? `<div class="line"><strong>Teléfono:</strong> ${escapeHtml(telefonoCliente)}</div>` : ''}
+                </div>
+                <div class="card">
+                  <h3>Datos de la empresa</h3>
+                  <div class="line"><strong>Dirección:</strong> ${escapeHtml(EMPRESA_INFO.direccion)}</div>
+                  <div class="line"><strong>Teléfono:</strong> ${escapeHtml(EMPRESA_INFO.telefono)}</div>
+                  <div class="line"><strong>Email:</strong> ${escapeHtml(EMPRESA_INFO.email)}</div>
+                </div>
+              </div>
+
+              <table>
+                <thead>
+                  <tr>
+                    <th>Producto</th>
+                    <th>Cantidad</th>
+                    <th>Precio Unitario</th>
+                    <th>Importe Parcial</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${filas}
+                </tbody>
+              </table>
+
+              <div class="totales">
+                <div class="totales-row"><span>Subtotal</span><span>$${detalleSubtotal.toFixed(2)}</span></div>
+                <div class="totales-row"><span>Bonificación</span><span>-$${detalleBonificacionAplicada.toFixed(2)}</span></div>
+                <div class="totales-row totales-final"><span>Total final</span><span>$${detalleTotalFinal.toFixed(2)}</span></div>
+              </div>
+
+              <div class="payment">
+                <div class="payment-header">
+                  <h3>Datos para transferencia</h3>
+                </div>
+                <div class="line"><strong>Titular:</strong> ${escapeHtml(TRANSFERENCIA_INFO.titular)}</div>
+                ${TRANSFERENCIA_INFO.cuit.trim() ? `<div class="line"><strong>CUIT/CUIL:</strong> ${escapeHtml(TRANSFERENCIA_INFO.cuit)}</div>` : ''}
+                <div class="line"><strong>Banco:</strong> ${escapeHtml(TRANSFERENCIA_INFO.banco)}</div>
+                ${TRANSFERENCIA_INFO.cbu.trim() ? `<div class="line"><strong>CBU:</strong> ${escapeHtml(TRANSFERENCIA_INFO.cbu)}</div>` : ''}
+                <div class="line"><strong>Alias:</strong> ${escapeHtml(TRANSFERENCIA_INFO.alias)}</div>
+              </div>
+
+              <div class="footer">
+                Gracias por su compra. Conserve este remito como comprobante.
+              </div>
+            </div>
           </div>
         </body>
       </html>
@@ -362,7 +660,7 @@ export default function Pedidos() {
   }
 
   const imprimirRemito = () => {
-    const html = construirHtmlRemito()
+    const html = construirHtmlRemito('print')
     if (!html) return
 
     const printWindow = window.open('', '_blank')
@@ -378,7 +676,122 @@ export default function Pedidos() {
     printWindow.print()
   }
 
-  const exportarRemitoPDF = () => {
+  const exportarRemitoJPG = async () => {
+    if (!pedidoDetalle) return
+
+    const html = construirHtmlRemito('jpg')
+    if (!html) return
+
+    const iframe = document.createElement('iframe')
+    iframe.style.position = 'fixed'
+    iframe.style.left = '-10000px'
+    iframe.style.top = '0'
+    iframe.style.width = '1300px'
+    iframe.style.height = '1800px'
+    iframe.style.opacity = '0'
+    iframe.setAttribute('aria-hidden', 'true')
+    document.body.appendChild(iframe)
+
+    try {
+      await new Promise<void>((resolve) => {
+        iframe.onload = () => resolve()
+        iframe.srcdoc = html
+      })
+
+      const iframeDocument = iframe.contentDocument
+      if (!iframeDocument) {
+        window.alert('No se pudo preparar el remito para exportar JPG')
+        return
+      }
+
+      const imagenes = Array.from(iframeDocument.images)
+      await Promise.all(
+        imagenes.map(
+          (img) =>
+            new Promise<void>((resolve) => {
+              if (img.complete) {
+                resolve()
+                return
+              }
+              img.addEventListener('load', () => resolve(), { once: true })
+              img.addEventListener('error', () => resolve(), { once: true })
+            })
+        )
+      )
+
+      const remitoNode = iframeDocument.querySelector('.remito') as HTMLElement | null
+      if (!remitoNode) {
+        window.alert('No se encontro el contenido del remito para exportar JPG')
+        return
+      }
+
+      const canvas = await html2canvas(remitoNode, {
+        backgroundColor: '#ffffff',
+        scale: 2,
+        useCORS: true,
+        logging: false,
+      })
+
+      const link = document.createElement('a')
+      link.download = `remito-pedido-${pedidoDetalle.id_pedido}.jpg`
+      link.href = canvas.toDataURL('image/jpeg', 0.95)
+      link.click()
+    } catch (error) {
+      console.error('Error al exportar remito en JPG:', error)
+      window.alert('No se pudo exportar el remito en JPG')
+    } finally {
+      iframe.remove()
+    }
+  }
+
+  const obtenerDataUrlImagen = async (url: string) => {
+    try {
+      const response = await fetch(url)
+      if (!response.ok) return null
+
+      const blob = await response.blob()
+      return await new Promise<string | null>((resolve) => {
+        const reader = new FileReader()
+        reader.onloadend = () => {
+          if (typeof reader.result === 'string') {
+            resolve(reader.result)
+            return
+          }
+          resolve(null)
+        }
+        reader.onerror = () => resolve(null)
+        reader.readAsDataURL(blob)
+      })
+    } catch {
+      return null
+    }
+  }
+
+  const aplicarOpacidadDataUrl = async (dataUrl: string, opacidad: number) => {
+    return await new Promise<string>((resolve) => {
+      const img = new Image()
+      img.onload = () => {
+        const canvas = document.createElement('canvas')
+        canvas.width = img.naturalWidth || img.width
+        canvas.height = img.naturalHeight || img.height
+
+        const context = canvas.getContext('2d')
+        if (!context) {
+          resolve(dataUrl)
+          return
+        }
+
+        context.clearRect(0, 0, canvas.width, canvas.height)
+        context.globalAlpha = Math.min(1, Math.max(0, opacidad))
+        context.drawImage(img, 0, 0)
+        resolve(canvas.toDataURL('image/png'))
+      }
+      img.onerror = () => resolve(dataUrl)
+      img.src = dataUrl
+    })
+  }
+
+  const exportarRemitoPDF = async () => {
     if (!pedidoDetalle) return
 
     const cliente = clientes.find(
@@ -390,56 +803,138 @@ export default function Pedidos() {
     const telefonoCliente = cliente?.telefono?.trim()
 
     const pdf = new jsPDF()
-    let y = 15
+    const companyLogoData = await obtenerDataUrlImagen(EMPRESA_INFO.logoUrl)
+    const companyLogoWatermarkData = companyLogoData
+      ? await aplicarOpacidadDataUrl(companyLogoData, 0.40)
+      : null
+    let y = 14
 
-    pdf.setFontSize(16)
-    pdf.text(`Remito - Pedido #${pedidoDetalle.id_pedido}`, 14, y)
+    if (companyLogoWatermarkData) {
+      pdf.addImage(companyLogoWatermarkData, 'PNG', 48, 98, 112, 112)
+      pdf.setTextColor(35, 35, 35)
+      pdf.setFontSize(10)
+    } else {
+      pdf.setTextColor(220, 220, 220)
+      pdf.setFontSize(56)
+      pdf.text(EMPRESA_INFO.nombre.toUpperCase(), 35, 145, { angle: -25 })
+      pdf.setTextColor(35, 35, 35)
+    }
+
+    pdf.setFontSize(18)
+    pdf.setFont('helvetica', 'bold')
+    pdf.text('REMITO', 14, y)
+    pdf.setFontSize(11)
+    pdf.setFont('helvetica', 'normal')
+    pdf.text(`Pedido #${pedidoDetalle.id_pedido}`, 14, y + 7)
+    pdf.text(`Fecha: ${formatearFecha(pedidoDetalle.fecha)}`, 14, y + 13)
+
+    if (companyLogoData) {
+      pdf.addImage(companyLogoData, 'PNG', 158, 10, 38, 20)
+    }
+
+    y = 36
+    pdf.setDrawColor(17, 24, 39)
+    pdf.setLineWidth(0.5)
+    pdf.line(14, y, 196, y)
     y += 8
 
+    pdf.setFont('helvetica', 'bold')
     pdf.setFontSize(11)
-    pdf.text(`Fecha: ${formatearFecha(pedidoDetalle.fecha)}`, 14, y)
+    pdf.text('DATOS DEL CLIENTE', 14, y)
+    pdf.setFont('helvetica', 'normal')
+    pdf.setFontSize(10)
     y += 6
     pdf.text(`Cliente: ${nombreCliente}`, 14, y)
-    y += 6
+    y += 5
     pdf.text(`Cliente ID: ${pedidoDetalle.id_cliente}`, 14, y)
     if (telefonoCliente) {
-      y += 6
-      pdf.text(`Teléfono: ${telefonoCliente}`, 14, y)
+      y += 5
+      pdf.text(`Telefono: ${telefonoCliente}`, 14, y)
     }
-    y += 10
 
+    y += 8
+    pdf.setFont('helvetica', 'bold')
+    pdf.text('DETALLE DE PRODUCTOS', 14, y)
+    y += 6
+
+    pdf.setFont('helvetica', 'bold')
+    pdf.setFontSize(10)
     pdf.text('Producto', 14, y)
-    pdf.text('Cant.', 105, y)
-    pdf.text('P. Unitario', 130, y)
+    pdf.text('Cant.', 108, y)
+    pdf.text('P. Unitario', 132, y)
     pdf.text('Parcial', 170, y)
-    y += 4
+    y += 3
     pdf.line(14, y, 196, y)
     y += 6
+    pdf.setFont('helvetica', 'normal')
 
     detalleProductos.forEach((item) => {
       const cantidadItem = obtenerCantidadValida(item.cantidad)
       const parcial = item.producto.precio_venta * cantidadItem
 
-      if (y > 270) {
+      if (y > 230) {
         pdf.addPage()
-        y = 15
+        y = 18
+        if (companyLogoData) {
+          pdf.addImage(companyLogoData, 'PNG', 145, 10, 48, 24)
+        }
+        pdf.setFont('helvetica', 'bold')
+        pdf.setFontSize(10)
+        pdf.text('Producto', 14, y)
+        pdf.text('Cant.', 108, y)
+        pdf.text('P. Unitario', 132, y)
+        pdf.text('Parcial', 170, y)
+        y += 3
+        pdf.line(14, y, 196, y)
+        y += 6
+        pdf.setFont('helvetica', 'normal')
       }
 
       pdf.text(item.producto.nombre_producto.substring(0, 45), 14, y)
-      pdf.text(String(cantidadItem), 107, y)
-      pdf.text(`$${item.producto.precio_venta.toFixed(2)}`, 130, y)
+      pdf.text(String(cantidadItem), 109, y)
+      pdf.text(`$${item.producto.precio_venta.toFixed(2)}`, 132, y)
       pdf.text(`$${parcial.toFixed(2)}`, 170, y)
       y += 6
     })
 
-    y += 4
+    y += 2
     pdf.line(14, y, 196, y)
-    y += 8
-    pdf.text(`Subtotal: $${detalleSubtotal.toFixed(2)}`, 140, y)
+    y += 7
+    pdf.setFont('helvetica', 'normal')
+    pdf.setFontSize(10)
+    pdf.text(`Subtotal: $${detalleSubtotal.toFixed(2)}`, 138, y)
     y += 6
-    pdf.text(`Bonificación: -$${detalleBonificacionAplicada.toFixed(2)}`, 140, y)
+    pdf.text(`Bonificacion: -$${detalleBonificacionAplicada.toFixed(2)}`, 138, y)
     y += 6
-    pdf.text(`Total Final: $${detalleTotalFinal.toFixed(2)}`, 140, y)
+    pdf.setFont('helvetica', 'bold')
+    pdf.setFontSize(12)
+    pdf.text(`Total Final: $${detalleTotalFinal.toFixed(2)}`, 138, y)
+
+    y += 10
+    if (y > 250) {
+      pdf.addPage()
+      y = 18
+    }
+
+    pdf.setFont('helvetica', 'bold')
+    pdf.setFontSize(10)
+    pdf.text('DATOS PARA TRANSFERENCIA', 14, y)
+    y += 6
+
+    pdf.setFont('helvetica', 'normal')
+    pdf.text(`Titular: ${TRANSFERENCIA_INFO.titular}`, 14, y)
+    if (TRANSFERENCIA_INFO.cuit.trim()) {
+      y += 5
+      pdf.text(`CUIT/CUIL: ${TRANSFERENCIA_INFO.cuit}`, 14, y)
+    }
+    y += 5
+    pdf.text(`Banco: ${TRANSFERENCIA_INFO.banco}`, 14, y)
+    if (TRANSFERENCIA_INFO.cbu.trim()) {
+      y += 5
+      pdf.text(`CBU: ${TRANSFERENCIA_INFO.cbu}`, 14, y)
+    }
+    y += 5
+    pdf.text(`Alias: ${TRANSFERENCIA_INFO.alias}`, 14, y)
 
     pdf.save(`remito-pedido-${pedidoDetalle.id_pedido}.pdf`)
   }
@@ -535,13 +1030,12 @@ export default function Pedidos() {
         <select
           value={estado}
           onChange={(e) => handleEstadoChange(row.id_pedido, e.target.value as 'Pendiente' | 'Terminado' | 'Entregado')}
-          className={`px-3 py-1 rounded-lg text-sm font-medium ${
-            estado === 'Entregado'
+          className={`px-3 py-1 rounded-lg text-sm font-medium ${estado === 'Entregado'
               ? 'bg-green-100 text-green-800'
               : estado === 'Terminado'
                 ? 'bg-orange-100 text-orange-800'
                 : 'bg-red-100 text-red-800'
-          }`}
+            }`}
         >
           <option value="Pendiente">Pendiente</option>
           <option value="Terminado">Terminado</option>
@@ -557,13 +1051,12 @@ export default function Pedidos() {
           <select
             value={pago}
             onChange={(e) => handlePagoChange(row.id_pedido, e.target.value as 'Debe' | 'Seña' | 'Pagado')}
-            className={`px-3 py-1 rounded-lg text-sm font-medium ${
-              pago === 'Pagado'
+            className={`px-3 py-1 rounded-lg text-sm font-medium ${pago === 'Pagado'
                 ? 'bg-green-100 text-green-800'
                 : pago === 'Seña'
                   ? 'bg-orange-100 text-orange-800'
                   : 'bg-red-100 text-red-800'
-            }`}
+              }`}
           >
             <option value="Debe">Debe</option>
             <option value="Seña">Seña</option>
@@ -612,7 +1105,7 @@ export default function Pedidos() {
       <main className="ml-0 md:ml-64 flex-1 p-4 md:p-8">
         <div className="max-w-7xl mx-auto">
           <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-6 md:mb-8">Pedidos</h1>
-          
+
           {loading && <p className="text-gray-600">Cargando...</p>}
           {error && <p className="text-red-600 mb-4">{error}</p>}
 
@@ -953,6 +1446,13 @@ export default function Pedidos() {
                     className="btn-secondary"
                   >
                     Exportar PDF
+                  </button>
+                  <button
+                    type="button"
+                    onClick={exportarRemitoJPG}
+                    className="btn-secondary"
+                  >
+                    Exportar JPG
                   </button>
                   {editarDetalle ? (
                     <>
