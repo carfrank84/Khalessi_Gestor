@@ -1,6 +1,4 @@
 import { useState, useMemo } from 'react'
-import html2canvas from 'html2canvas'
-import { jsPDF } from 'jspdf'
 import { Link, useSearchParams } from 'react-router-dom'
 import Sidebar from '../components/Sidebar'
 import FormCard from '../components/FormCard'
@@ -27,6 +25,16 @@ const TRANSFERENCIA_INFO = {
   cbu: '',
 
   alias: 'kcreaciones2026',
+}
+
+const loadHtml2Canvas = async () => {
+  const module = await import('html2canvas')
+  return module.default
+}
+
+const loadJsPDF = async () => {
+  const module = await import('jspdf')
+  return module.jsPDF
 }
 
 export default function Pedidos() {
@@ -725,6 +733,8 @@ export default function Pedidos() {
         return
       }
 
+      const html2canvas = await loadHtml2Canvas()
+
       const canvas = await html2canvas(remitoNode, {
         backgroundColor: '#ffffff',
         scale: 2,
@@ -802,7 +812,8 @@ export default function Pedidos() {
       : `Cliente #${pedidoDetalle.id_cliente}`
     const telefonoCliente = cliente?.telefono?.trim()
 
-    const pdf = new jsPDF()
+    const JsPDF = await loadJsPDF()
+    const pdf = new JsPDF()
     const companyLogoData = await obtenerDataUrlImagen(EMPRESA_INFO.logoUrl)
     const companyLogoWatermarkData = companyLogoData
       ? await aplicarOpacidadDataUrl(companyLogoData, 0.40)
