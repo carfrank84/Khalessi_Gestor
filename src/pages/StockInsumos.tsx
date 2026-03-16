@@ -2,6 +2,7 @@ import { useState } from 'react'
 import Sidebar from '../components/Sidebar'
 import FormCard from '../components/FormCard'
 import DataTable from '../components/DataTable'
+import SummaryCard from '../components/SummaryCard'
 import { Insumo } from '../types'
 import { useInsumos } from '../hooks/useInsumos'
 
@@ -13,6 +14,17 @@ export default function StockInsumos() {
     cantidad: '',
   })
   const [editingId, setEditingId] = useState<string | null>(null)
+
+  const formatCurrency = (value: number) => {
+    return `$ ${new Intl.NumberFormat('es-AR', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(value)}`
+  }
+
+  const totalSalidas = insumos.reduce((sum, insumo) => {
+    return sum + (insumo.precio_costo * insumo.cantidad)
+  }, 0)
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -113,7 +125,17 @@ export default function StockInsumos() {
       <Sidebar />
       <main className="ml-0 md:ml-64 flex-1 p-4 md:p-8">
         <div className="max-w-7xl mx-auto">
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-6 md:mb-8">Stock de Insumos</h1>
+          <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-6 md:mb-8">
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Stock de Insumos</h1>
+            <div className="w-full lg:w-auto lg:min-w-[320px]">
+              <SummaryCard
+                title="Total Salidas"
+                value={formatCurrency(totalSalidas)}
+                icon="💸"
+                color="purple"
+              />
+            </div>
+          </div>
           
           {loading && <p className="text-gray-600">Cargando...</p>}
           {error && <p className="text-red-600 mb-4">{error}</p>}
