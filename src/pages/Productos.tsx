@@ -10,16 +10,28 @@ export default function Productos() {
   const [formData, setFormData] = useState({
     nombre_producto: '',
     precio_costo: '',
+    precio_venta: '',
   })
   const [disenoPorcentaje, setDisenoPorcentaje] = useState(50)
   const [disenoInput, setDisenoInput] = useState('50')
+  const [precioVentaManual, setPrecioVentaManual] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
 
   const calcularPrecioVenta = (precioCosto: number) => {
     const conImpresion = precioCosto * 1.15
     const conDiseno = conImpresion * (1 + disenoPorcentaje / 100)
     const precioFinal = conDiseno * 1.5
-    return Math.round(precioFinal / 100) * 100
+    return Number(precioFinal.toFixed(2))
+  }
+
+  const calcularPrecioSugerido = (precioCostoTexto: string) => {
+    const precioCostoNumero = parseFloat(precioCostoTexto)
+
+    if (Number.isNaN(precioCostoNumero)) {
+      return ''
+    }
+
+    return calcularPrecioVenta(precioCostoNumero).toString()
   }
 
   const aplicarPorcentajeDiseno = () => {
@@ -31,50 +43,69 @@ export default function Productos() {
     }
 
     setDisenoPorcentaje(porcentaje)
+
+    if (!precioVentaManual) {
+      setFormData((actual) => ({
+        ...actual,
+        precio_venta: calcularPrecioSugerido(actual.precio_costo),
+      }))
+    }
   }
 
   const precioCostoNumero = parseFloat(formData.precio_costo)
-  const precioVentaCalculado = Number.isNaN(precioCostoNumero)
-    ? ''
-    : calcularPrecioVenta(precioCostoNumero).toString()
+  const precioVentaSugerido = calcularPrecioSugerido(formData.precio_costo)
+  const precioVentaFinal = precioVentaManual ? formData.precio_venta : precioVentaSugerido
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    
+
+    const precioVentaNumero = parseFloat(precioVentaFinal)
+
+    if (Number.isNaN(precioCostoNumero) || Number.isNaN(precioVentaNumero)) {
+      window.alert('Ingrese un precio de costo y un precio de venta válidos.')
+      return
+    }
+
     if (editingId) {
       updateProducto(editingId, {
         nombre_producto: formData.nombre_producto,
         precio_costo: precioCostoNumero,
-        precio_venta: calcularPrecioVenta(precioCostoNumero),
+        precio_venta: precioVentaNumero,
       })
       setEditingId(null)
     } else {
       addProducto({
         nombre_producto: formData.nombre_producto,
         precio_costo: precioCostoNumero,
-        precio_venta: calcularPrecioVenta(precioCostoNumero),
+        precio_venta: precioVentaNumero,
       })
     }
-    
+
     setFormData({
       nombre_producto: '',
       precio_costo: '',
+      precio_venta: '',
     })
+    setPrecioVentaManual(false)
   }
 
   const handleEdit = (producto: Producto) => {
     setFormData({
       nombre_producto: producto.nombre_producto,
       precio_costo: producto.precio_costo.toString(),
+      precio_venta: producto.precio_venta.toString(),
     })
+    setPrecioVentaManual(true)
     setEditingId(producto.id_producto)
   }
 
   const handleCancel = () => {
     setEditingId(null)
+    setPrecioVentaManual(false)
     setFormData({
       nombre_producto: '',
       precio_costo: '',
+      precio_venta: '',
     })
   }
 
@@ -91,23 +122,27 @@ export default function Productos() {
   const columns = [
     { key: 'id_producto', label: 'ID' },
     { key: 'nombre_producto', label: 'Nombre' },
-    { 
-      key: 'precio_costo', 
+    {
+      key: 'precio_costo',
       label: 'Precio Costo',
-      render: (value: number) => `$${value.toFixed(2)}`
+      render: (value: number) => `$${value.toFixed(2)}`,
     },
-    { 
-      key: 'precio_venta', 
+    {
+      key: 'precio_venta',
       label: 'Precio Venta',
-      render: (value: number) => `$${value.toFixed(2)}`
+      render: (value: number) => `$${value.toFixed(2)}`,
     },
     {
       key: 'margen',
       label: 'Margen',
       render: (_: any, row: Producto) => {
+        if (row.precio_costo <= 0) {
+          return 'N/A'
+        }
+
         const margen = ((row.precio_venta - row.precio_costo) / row.precio_costo * 100).toFixed(2)
         return `${margen}%`
-      }
+      },
     },
     {
       key: 'acciones',
@@ -127,7 +162,7 @@ export default function Productos() {
             Eliminar
           </button>
         </div>
-      )
+      ),
     },
   ]
 
@@ -137,12 +172,12 @@ export default function Productos() {
       <main className="ml-0 md:ml-64 flex-1 p-4 md:p-8">
         <div className="max-w-7xl mx-auto">
           <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-6 md:mb-8">Productos</h1>
-          
+
           {loading && <p className="text-gray-600">Cargando...</p>}
           {error && <p className="text-red-600 mb-4">{error}</p>}
 
-          <FormCard 
-            title={editingId ? 'Editar Producto' : 'Nuevo Producto'} 
+          <FormCard
+            title={editingId ? 'Editar Producto' : 'Nuevo Producto'}
             onSubmit={handleSubmit}
           >
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -166,8 +201,17 @@ export default function Productos() {
                 <input
                   type="number"
                   step="0.01"
+                  min="0"
                   value={formData.precio_costo}
-                  onChange={(e) => setFormData({ ...formData, precio_costo: e.target.value })}
+                  onChange={(e) => {
+                    const precioCosto = e.target.value
+
+                    setFormData((actual) => ({
+                      ...actual,
+                      precio_costo: precioCosto,
+                      precio_venta: precioVentaManual ? actual.precio_venta : calcularPrecioSugerido(precioCosto),
+                    }))
+                  }}
                   className="input-field"
                   required
                 />
@@ -180,10 +224,33 @@ export default function Productos() {
                 <input
                   type="number"
                   step="0.01"
-                  value={precioVentaCalculado}
+                  min="0"
+                  value={precioVentaFinal}
+                  onChange={(e) => {
+                    setPrecioVentaManual(true)
+                    setFormData({ ...formData, precio_venta: e.target.value })
+                  }}
                   className="input-field"
-                  readOnly
+                  required
                 />
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <span className="text-sm text-gray-500">
+                    Sugerido: {precioVentaSugerido === '' ? '$0.00' : `$${Number(precioVentaSugerido).toFixed(2)}`}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPrecioVentaManual(false)
+                      setFormData((actual) => ({
+                        ...actual,
+                        precio_venta: precioVentaSugerido,
+                      }))
+                    }}
+                    className="text-sm text-blue-600 hover:text-blue-800"
+                  >
+                    Usar sugerido
+                  </button>
+                </div>
               </div>
 
               <div className="flex items-end gap-2 flex-col sm:flex-row">

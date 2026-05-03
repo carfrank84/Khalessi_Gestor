@@ -82,7 +82,9 @@ INSERT INTO productos (nombre_producto, precio_costo, precio_venta) VALUES
 ('Laptop', 500.00, 800.00),
 ('Mouse', 10.00, 25.00),
 ('Teclado', 30.00, 60.00),
-('Monitor', 150.00, 250.00);
+('Monitor', 150.00, 250.00),
+('Fotocopia color', 1.00, 75.00),
+('Fotocopia blanco y negro', 1.00, 50.00);
 
 INSERT INTO insumos (nombre_insumo, precio_costo, cantidad) VALUES
 ('Cable USB', 2.00, 100),
