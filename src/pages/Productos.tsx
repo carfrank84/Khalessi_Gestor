@@ -5,6 +5,13 @@ import DataTable from '../components/DataTable'
 import { Producto } from '../types'
 import { useProductos } from '../hooks/useProductos'
 
+type ModoCalculo = 'costo' | 'venta'
+
+const FACTOR_IMPRESION = 1.15
+const FACTOR_DISEÑO = 1.5
+
+const redondearPrecio = (valor: number) => Number(valor.toFixed(2))
+
 export default function Productos() {
   const { productos, loading, error, addProducto, updateProducto, deleteProducto } = useProductos()
   const [formData, setFormData] = useState({
@@ -14,17 +21,23 @@ export default function Productos() {
   })
   const [disenoPorcentaje, setDisenoPorcentaje] = useState(50)
   const [disenoInput, setDisenoInput] = useState('50')
-  const [precioVentaManual, setPrecioVentaManual] = useState(false)
+  const [modoCalculo, setModoCalculo] = useState<ModoCalculo>('costo')
   const [editingId, setEditingId] = useState<string | null>(null)
 
   const calcularPrecioVenta = (precioCosto: number) => {
-    const conImpresion = precioCosto * 1.15
+    const conImpresion = precioCosto * FACTOR_IMPRESION
     const conDiseno = conImpresion * (1 + disenoPorcentaje / 100)
-    const precioFinal = conDiseno * 1.5
-    return Number(precioFinal.toFixed(2))
+    const precioFinal = conDiseno * FACTOR_DISEÑO
+    return redondearPrecio(precioFinal)
   }
 
-  const calcularPrecioSugerido = (precioCostoTexto: string) => {
+  const calcularPrecioCosto = (precioVenta: number) => {
+    const factorTotal = FACTOR_IMPRESION * (1 + disenoPorcentaje / 100) * FACTOR_DISEÑO
+    const precioCosto = precioVenta / factorTotal
+    return redondearPrecio(precioCosto)
+  }
+
+  const calcularPrecioVentaTexto = (precioCostoTexto: string) => {
     const precioCostoNumero = parseFloat(precioCostoTexto)
 
     if (Number.isNaN(precioCostoNumero)) {
@@ -32,6 +45,16 @@ export default function Productos() {
     }
 
     return calcularPrecioVenta(precioCostoNumero).toString()
+  }
+
+  const calcularPrecioCostoTexto = (precioVentaTexto: string) => {
+    const precioVentaNumero = parseFloat(precioVentaTexto)
+
+    if (Number.isNaN(precioVentaNumero)) {
+      return ''
+    }
+
+    return calcularPrecioCosto(precioVentaNumero).toString()
   }
 
   const aplicarPorcentajeDiseno = () => {
@@ -44,22 +67,26 @@ export default function Productos() {
 
     setDisenoPorcentaje(porcentaje)
 
-    if (!precioVentaManual) {
-      setFormData((actual) => ({
+    setFormData((actual) => {
+      if (modoCalculo === 'costo') {
+        return {
+          ...actual,
+          precio_venta: calcularPrecioVentaTexto(actual.precio_costo),
+        }
+      }
+
+      return {
         ...actual,
-        precio_venta: calcularPrecioSugerido(actual.precio_costo),
-      }))
-    }
+        precio_costo: calcularPrecioCostoTexto(actual.precio_venta),
+      }
+    })
   }
 
   const precioCostoNumero = parseFloat(formData.precio_costo)
-  const precioVentaSugerido = calcularPrecioSugerido(formData.precio_costo)
-  const precioVentaFinal = precioVentaManual ? formData.precio_venta : precioVentaSugerido
+  const precioVentaNumero = parseFloat(formData.precio_venta)
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-
-    const precioVentaNumero = parseFloat(precioVentaFinal)
 
     if (Number.isNaN(precioCostoNumero) || Number.isNaN(precioVentaNumero)) {
       window.alert('Ingrese un precio de costo y un precio de venta válidos.')
@@ -86,7 +113,7 @@ export default function Productos() {
       precio_costo: '',
       precio_venta: '',
     })
-    setPrecioVentaManual(false)
+    setModoCalculo('costo')
   }
 
   const handleEdit = (producto: Producto) => {
@@ -95,13 +122,12 @@ export default function Productos() {
       precio_costo: producto.precio_costo.toString(),
       precio_venta: producto.precio_venta.toString(),
     })
-    setPrecioVentaManual(true)
     setEditingId(producto.id_producto)
   }
 
   const handleCancel = () => {
     setEditingId(null)
-    setPrecioVentaManual(false)
+    setModoCalculo('costo')
     setFormData({
       nombre_producto: '',
       precio_costo: '',
@@ -194,6 +220,57 @@ export default function Productos() {
                 />
               </div>
 
+              <div className="md:col-span-3">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Modo de cálculo
+                </label>
+                <div className="inline-flex rounded-lg border border-gray-300 bg-white p-1 shadow-sm">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (modoCalculo === 'costo') return
+
+                      setModoCalculo('costo')
+                      setFormData((actual) => ({
+                        ...actual,
+                        precio_venta: calcularPrecioVentaTexto(actual.precio_costo),
+                      }))
+                    }}
+                    className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                      modoCalculo === 'costo'
+                        ? 'bg-blue-600 text-white'
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    Calcular venta desde costo
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (modoCalculo === 'venta') return
+
+                      setModoCalculo('venta')
+                      setFormData((actual) => ({
+                        ...actual,
+                        precio_costo: calcularPrecioCostoTexto(actual.precio_venta),
+                      }))
+                    }}
+                    className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                      modoCalculo === 'venta'
+                        ? 'bg-blue-600 text-white'
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    Calcular costo desde venta
+                  </button>
+                </div>
+                <p className="text-sm text-gray-500 mt-2">
+                  {modoCalculo === 'costo'
+                    ? 'Ingresá el precio de costo y el sistema calculará el precio de venta final.'
+                    : 'Ingresá el precio de venta final y el sistema calculará el precio de costo inverso.'}
+                </p>
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Precio Costo
@@ -206,13 +283,24 @@ export default function Productos() {
                   onChange={(e) => {
                     const precioCosto = e.target.value
 
+                    if (modoCalculo === 'venta') {
+                      setFormData((actual) => ({
+                        ...actual,
+                        precio_costo: precioCosto,
+                      }))
+                      return
+                    }
+
                     setFormData((actual) => ({
                       ...actual,
                       precio_costo: precioCosto,
-                      precio_venta: precioVentaManual ? actual.precio_venta : calcularPrecioSugerido(precioCosto),
+                      precio_venta: calcularPrecioVentaTexto(precioCosto),
                     }))
                   }}
                   className="input-field"
+                  readOnly={modoCalculo === 'venta'}
+                  aria-readonly={modoCalculo === 'venta'}
+                  placeholder={modoCalculo === 'venta' ? 'Se calcula automáticamente' : '0.00'}
                   required
                 />
               </div>
@@ -225,32 +313,35 @@ export default function Productos() {
                   type="number"
                   step="0.01"
                   min="0"
-                  value={precioVentaFinal}
+                  value={formData.precio_venta}
                   onChange={(e) => {
-                    setPrecioVentaManual(true)
-                    setFormData({ ...formData, precio_venta: e.target.value })
-                  }}
-                  className="input-field"
-                  required
-                />
-                <div className="mt-2 flex flex-wrap items-center gap-2">
-                  <span className="text-sm text-gray-500">
-                    Sugerido: {precioVentaSugerido === '' ? '$0.00' : `$${Number(precioVentaSugerido).toFixed(2)}`}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPrecioVentaManual(false)
+                    const precioVenta = e.target.value
+
+                    if (modoCalculo === 'costo') {
                       setFormData((actual) => ({
                         ...actual,
-                        precio_venta: precioVentaSugerido,
+                        precio_venta: precioVenta,
                       }))
-                    }}
-                    className="text-sm text-blue-600 hover:text-blue-800"
-                  >
-                    Usar sugerido
-                  </button>
-                </div>
+                      return
+                    }
+
+                    setFormData((actual) => ({
+                      ...actual,
+                      precio_venta: precioVenta,
+                      precio_costo: calcularPrecioCostoTexto(precioVenta),
+                    }))
+                  }}
+                  className="input-field"
+                  readOnly={modoCalculo === 'costo'}
+                  aria-readonly={modoCalculo === 'costo'}
+                  placeholder={modoCalculo === 'costo' ? 'Se calcula automáticamente' : '0.00'}
+                  required
+                />
+                <p className="text-sm text-gray-500 mt-2">
+                  {modoCalculo === 'costo'
+                    ? `Venta calculada: ${formData.precio_venta ? `$${Number(formData.precio_venta).toFixed(2)}` : '$0.00'}`
+                    : `Costo calculado: ${formData.precio_costo ? `$${Number(formData.precio_costo).toFixed(2)}` : '$0.00'}`}
+                </p>
               </div>
 
               <div className="flex items-end gap-2 flex-col sm:flex-row">
