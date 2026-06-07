@@ -22,6 +22,27 @@ export default function StockInsumos() {
     }).format(value)}`
   }
 
+  const formatDate = (value: string) => {
+    const date = new Date(value)
+
+    if (Number.isNaN(date.getTime())) {
+      return '-'
+    }
+
+    return new Intl.DateTimeFormat('es-AR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    }).format(date)
+  }
+
+  const insumosOrdenados = [...insumos].sort((a, b) => {
+    const fechaA = new Date(a.created_at ?? '').getTime()
+    const fechaB = new Date(b.created_at ?? '').getTime()
+
+    return fechaB - fechaA
+  })
+
   const totalSalidas = insumos.reduce((sum, insumo) => {
     return sum + (insumo.precio_costo * insumo.cantidad)
   }, 0)
@@ -84,14 +105,10 @@ export default function StockInsumos() {
       label: 'Precio Costo',
       render: (value: number) => `$${value.toFixed(2)}`
     },
-    { 
-      key: 'cantidad', 
-      label: 'Cantidad',
-      render: (value: number) => (
-        <span className={value <= 10 ? 'text-red-600 font-semibold' : ''}>
-          {value} {value <= 10 && '⚠️'}
-        </span>
-      )
+    {
+      key: 'created_at',
+      label: 'Fecha de carga',
+      render: (value?: string) => formatDate(value ?? '')
     },
     {
       key: 'total',
@@ -202,7 +219,7 @@ export default function StockInsumos() {
 
           <DataTable
             columns={columns}
-            data={insumos}
+            data={insumosOrdenados}
             searchable
             searchPlaceholder="Buscar insumo..."
           />

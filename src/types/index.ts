@@ -19,6 +19,7 @@ export interface Insumo {
   nombre_insumo: string;
   precio_costo: number;
   cantidad: number;
+  created_at?: string;
 }
 
 export interface PedidoProducto {
